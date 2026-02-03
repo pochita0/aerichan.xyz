@@ -1,10 +1,10 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   ResponsiveGridLayout,
   useContainerWidth,
   verticalCompactor,
 } from 'react-grid-layout';
-import type { Layout, ResponsiveLayouts } from 'react-grid-layout';
+import type { Layout, LayoutItem, ResponsiveLayouts } from 'react-grid-layout';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 
 type LayoutDef = {
@@ -15,6 +15,7 @@ type LayoutDef = {
   h: number;
   minW?: number;
   minH?: number;
+  maxH?: number;
 };
 
 interface DashboardGridProps {
@@ -23,99 +24,144 @@ interface DashboardGridProps {
 }
 
 // Breakpoint definitions
-// All breakpoints use 12 columns for consistent layout
 const breakpoints = { lg: 1200, md: 768, sm: 480, xs: 0 };
 const cols = { lg: 12, md: 12, sm: 12, xs: 12 };
+
+// Maximum rows to contain the grid
+const MAX_ROWS = 8;
+
+// Custom constraint to keep items within grid bounds
+const gridBoundsConstraint = {
+  name: 'gridBounds',
+  constrainPosition: (item: LayoutItem, x: number, y: number, context: { cols: number; maxRows: number }) => {
+    // Clamp x to grid bounds
+    const maxX = context.cols - item.w;
+    const clampedX = Math.max(0, Math.min(x, maxX));
+
+    // Clamp y to grid bounds
+    const maxY = context.maxRows - item.h;
+    const clampedY = Math.max(0, Math.min(y, maxY));
+
+    return { x: clampedX, y: clampedY };
+  },
+  constrainSize: (item: LayoutItem, w: number, h: number, _handle: string, context: { cols: number; maxRows: number }) => {
+    // Clamp width
+    const maxW = context.cols - item.x;
+    const clampedW = Math.max(item.minW || 1, Math.min(w, maxW));
+
+    // Clamp height
+    const maxH = context.maxRows - item.y;
+    const clampedH = Math.max(item.minH || 1, Math.min(h, maxH));
+
+    return { w: clampedW, h: clampedH };
+  },
+};
 
 export const DashboardGrid: React.FC<DashboardGridProps> = ({
   children,
   defaultLayout,
 }) => {
-  const [, setSavedLayouts] = useLocalStorage<Record<string, LayoutDef[]>>(
-    'dashboard-layouts-v2',
+  const [savedLayouts, setSavedLayouts] = useLocalStorage<Record<string, LayoutDef[]>>(
+    'dashboard-layouts-v7',
     {}
   );
+  const [currentLayouts, setCurrentLayouts] = useState<ResponsiveLayouts>({});
   const [isMobile, setIsMobile] = useState(false);
 
-  // Use the library's own hook for accurate container width measurement
   const { width: containerWidth, mounted, containerRef } = useContainerWidth({
     initialWidth: typeof window !== 'undefined' ? window.innerWidth - 48 : 1200,
   });
 
   const [rowHeight, setRowHeight] = useState(100);
 
-  // Calculate dynamic row height to fit screen
+  // Calculate dynamic row height
   useEffect(() => {
     const updateRowHeight = () => {
       if (typeof window === 'undefined') return;
-
-      const HEADER_HEIGHT = 0; // Header removed
-      const MAIN_PADDING = 100; // Increased to account for p-12 (48px*2) + safe area
-      const GRID_MARGIN = 16;   // Grid item margin
-      const TOTAL_ROWS = 8;     // Total rows in our layout (6 + 2)
-
-      const availableHeight = window.innerHeight - HEADER_HEIGHT - MAIN_PADDING;
-      const totalMargins = GRID_MARGIN * (TOTAL_ROWS - 1);
-
-      // Calculate height per row to fit exactly in viewport
-      const calculatedHeight = Math.floor((availableHeight - totalMargins) / TOTAL_ROWS);
-
-      // Enforce a sensible minimum to prevent UI breaking on very small screens
+      const MAIN_PADDING = 100;
+      const GRID_MARGIN = 16;
+      const availableHeight = window.innerHeight - MAIN_PADDING;
+      const totalMargins = GRID_MARGIN * (MAX_ROWS - 1);
+      const calculatedHeight = Math.floor((availableHeight - totalMargins) / MAX_ROWS);
       setRowHeight(Math.max(calculatedHeight, 50));
     };
-
     updateRowHeight();
     window.addEventListener('resize', updateRowHeight);
     return () => window.removeEventListener('resize', updateRowHeight);
   }, []);
 
-  // Detect mobile viewport
+  // Detect mobile
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Generate responsive layouts for all breakpoints
-  const generateResponsiveLayouts = (baseLayout: LayoutDef[]): ResponsiveLayouts => {
-    return {
-      lg: baseLayout,
-      md: baseLayout,
-      sm: baseLayout, // Keep same layout for tablet
-      xs: baseLayout, // Keep same layout for mobile (will scale down)
-    };
+  // Add constraints to layouts
+  const addConstraints = (layout: LayoutDef[]): LayoutDef[] => {
+    return layout.map(item => ({
+      ...item,
+      // Ensure items fit within bounds
+      y: Math.min(item.y, MAX_ROWS - item.h),
+      h: Math.min(item.h, MAX_ROWS - item.y),
+    }));
   };
 
-  const handleLayoutChange = (_currentLayout: Layout, allLayouts: ResponsiveLayouts) => {
+  // Initialize layouts
+  useEffect(() => {
+    const initLayouts = (): ResponsiveLayouts => {
+      if (savedLayouts && Object.keys(savedLayouts).length > 0) {
+        return {
+          lg: addConstraints(savedLayouts.lg || defaultLayout),
+          md: addConstraints(savedLayouts.md || defaultLayout),
+          sm: addConstraints(savedLayouts.sm || defaultLayout),
+          xs: addConstraints(savedLayouts.xs || defaultLayout),
+        };
+      }
+      return {
+        lg: addConstraints(defaultLayout),
+        md: addConstraints(defaultLayout),
+        sm: addConstraints(defaultLayout),
+        xs: addConstraints(defaultLayout),
+      };
+    };
+    setCurrentLayouts(initLayouts());
+  }, []);
+
+  // Save layout changes - constrain to bounds
+  const handleLayoutChange = useCallback((_layout: Layout, allLayouts: Partial<Record<string, Layout>>) => {
     const mutableLayouts: Record<string, LayoutDef[]> = {};
-    for (const [bp, layout] of Object.entries(allLayouts)) {
-      if (layout) {
-        mutableLayouts[bp] = layout.map(item => ({
+
+    for (const [bp, bpLayout] of Object.entries(allLayouts)) {
+      if (bpLayout) {
+        // Constrain all items to grid bounds
+        const constrainedLayout = bpLayout.map((item) => ({
           i: item.i,
           x: item.x,
-          y: item.y,
+          y: Math.min(item.y, MAX_ROWS - item.h),
           w: item.w,
-          h: item.h,
+          h: Math.min(item.h, MAX_ROWS - item.y),
           minW: item.minW,
           minH: item.minH,
         }));
+        mutableLayouts[bp] = constrainedLayout;
       }
     }
-    setSavedLayouts(mutableLayouts);
-  };
 
-  const responsiveLayouts = useMemo(() => {
-    return generateResponsiveLayouts(defaultLayout);
-  }, [defaultLayout]);
+    setSavedLayouts(mutableLayouts);
+    setCurrentLayouts(allLayouts as ResponsiveLayouts);
+  }, [setSavedLayouts]);
+
+  // Handle breakpoint change
+  const handleBreakpointChange = useCallback((_newBreakpoint: string) => {
+    // Breakpoint changed - layout will auto-adjust
+  }, []);
 
   const dragConfig = useMemo(() => ({
     enabled: !isMobile,
     handle: '.drag-handle',
-    bounded: false,
+    bounded: true,
     threshold: 3,
   }), [isMobile]);
 
@@ -124,10 +170,9 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
     handles: ['s', 'e', 'se'] as const,
   }), [isMobile]);
 
-  // Build children array with correct keys that match layout item `i` values.
-  // IMPORTANT: Do NOT use React.Children.map here because it mangles keys
-  // by prepending the original child's key/index, causing layout item lookup
-  // to fail (items fall back to w:1 h:1 defaults).
+  // Constraints array
+  const constraints = useMemo(() => [gridBoundsConstraint], []);
+
   const gridChildren = useMemo(() => {
     const result: React.ReactElement[] = [];
     React.Children.forEach(children, (child, index) => {
@@ -146,17 +191,27 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
     return result;
   }, [children, defaultLayout, isMobile]);
 
+  const layoutsToUse = Object.keys(currentLayouts).length > 0 ? currentLayouts : {
+    lg: addConstraints(defaultLayout),
+    md: addConstraints(defaultLayout),
+    sm: addConstraints(defaultLayout),
+    xs: addConstraints(defaultLayout),
+  };
+
   return (
     <div className="p-4 sm:p-8 md:p-12" ref={containerRef}>
       {mounted && containerWidth > 0 && (
         <ResponsiveGridLayout
           className="layout"
           width={containerWidth}
-          layouts={responsiveLayouts}
+          layouts={layoutsToUse}
           breakpoints={breakpoints}
           cols={cols}
           rowHeight={rowHeight}
+          maxRows={MAX_ROWS}
+          constraints={constraints}
           onLayoutChange={handleLayoutChange}
+          onBreakpointChange={handleBreakpointChange}
           dragConfig={dragConfig}
           resizeConfig={resizeConfig}
           compactor={verticalCompactor}

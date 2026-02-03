@@ -572,12 +572,12 @@ export const BookmarkWidget: React.FC = () => {
     const isOver = dragOverId === item.id;
 
     // Folder: 2x2 size (2 apps + gap). App: 1x1 size.
-    // App: 64px, Grid Gap: 8px (gap-2)
-    // Two Apps Stacked Height: 64 + 8 + 64 = 136px.
-    // Folder is 136px. Perfect match.
+    // App: 60px, Grid Gap: 8px
+    // Two Apps Stacked Height: 60 + 8 + 60 = 128px.
+    // Folder is 128px. Perfect match.
     const spanClass = isFolder ? 'row-span-2' : '';
-    const iconSize = isFolder ? 'w-[136px] h-[136px]' : 'w-[64px] h-[64px]';
-    const itemWidth = isFolder ? 136 : 64;
+    const iconSize = isFolder ? 'w-[128px] h-[128px]' : 'w-[60px] h-[60px]';
+    const itemWidth = isFolder ? 128 : 60;
 
     const isDragged = draggedId === item.id;
 
@@ -695,7 +695,7 @@ export const BookmarkWidget: React.FC = () => {
               <p className="text-xs">Empty</p>
             </div>
           ) : (
-            <div className="grid grid-rows-2 grid-flow-col auto-cols-max gap-3 h-full p-3 content-start items-center">
+            <div className="grid grid-rows-2 grid-flow-col auto-cols-max gap-2 h-full p-2 content-start items-center">
               {rootItems.map((item) => (
                 <React.Fragment key={item.id}>
                   {renderItem(item)}
