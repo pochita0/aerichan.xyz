@@ -1,0 +1,192 @@
+/* React Grid Layout Styles - Must be first */
+@import 'react-grid-layout/css/styles.css';
+@import 'react-resizable/css/styles.css';
+
+/* Tailwind CSS v4 */
+@import "tailwindcss";
+
+/* Custom base styles */
+@layer base {
+  :root {
+    font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    font-weight: 400;
+
+    color-scheme: light dark;
+
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+  }
+}
+
+/* React Grid Layout custom styles */
+.react-grid-item {
+  transition: all 200ms ease;
+}
+
+.react-grid-item.resizing {
+  transition: none;
+  z-index: 100 !important;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.react-grid-item.react-draggable-dragging {
+  transition: none;
+  z-index: 100 !important;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.react-grid-placeholder {
+  background: rgba(255, 255, 255, 0.1) !important;
+  opacity: 0.5 !important;
+  border: 2px dashed rgba(255, 255, 255, 0.3) !important;
+  transition-duration: 0.1s !important;
+  z-index: 2;
+  border-radius: 24px !important;
+  backdrop-filter: blur(2px);
+}
+
+/* Accordion Animation */
+.expand-wrapper {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s ease-out;
+}
+
+.expand-wrapper.expanded {
+  grid-template-rows: 1fr;
+}
+
+.expand-inner {
+  overflow: hidden;
+}
+
+/* Custom Resize Handle */
+/* Custom Resize Handles */
+
+/* SE Corner Handle - Huge Hitbox */
+/* SE Corner Handle */
+.react-resizable-handle-se {
+  display: block !important;
+  z-index: 90 !important;
+  /* Lower than buttons (z-10, z-50) if possible, but needs to be clickable. Button is z-10? */
+  width: 20px !important;
+  height: 20px !important;
+  right: 0px !important;
+  bottom: 0px !important;
+  background: none !important;
+  background-color: transparent !important;
+  cursor: se-resize;
+  position: absolute;
+  touch-action: none;
+}
+
+/* Visual Indicator (Arrow) - Hidden by default, shown on hover */
+.react-resizable-handle-se::after {
+  content: "";
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid rgba(255, 255, 255, 0.8);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.8);
+  opacity: 0;
+  transition: opacity 0.2s, width 0.2s, height 0.2s;
+  pointer-events: none;
+}
+
+/* Hover effect */
+.react-resizable-handle-se:hover::after {
+  opacity: 1;
+  width: 12px;
+  height: 12px;
+  border-color: #fff;
+}
+
+/* South Edge Handle */
+.react-resizable-handle-s {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 50px;
+  /* Stop before simplified corner area */
+  height: 15px;
+  /* Thicker for easier grabbing */
+  cursor: s-resize;
+  z-index: 999;
+  background: transparent !important;
+}
+
+/* East Edge Handle */
+.react-resizable-handle-e {
+  position: absolute;
+  top: 0;
+  bottom: 50px;
+  /* Stop before simplified corner area */
+  right: 0;
+  width: 15px;
+  /* Thicker for easier grabbing */
+  cursor: e-resize;
+  z-index: 999;
+  background: transparent !important;
+}
+
+/* Modal Open Animation */
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-right {
+  animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-left {
+  animation: slideInLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
