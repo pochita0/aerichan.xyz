@@ -85,20 +85,8 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
     return {
       lg: baseLayout,
       md: baseLayout,
-      sm: baseLayout.map((item, idx) => ({
-        ...item,
-        w: 6,
-        x: 0,
-        y: idx * (item.h || 4),
-        minW: undefined,
-      })),
-      xs: baseLayout.map((item, idx) => ({
-        ...item,
-        w: 4,
-        x: 0,
-        y: idx * (item.h || 4),
-        minW: undefined,
-      })),
+      sm: baseLayout, // Keep same layout for tablet
+      xs: baseLayout, // Keep same layout for mobile (will scale down)
     };
   };
 
