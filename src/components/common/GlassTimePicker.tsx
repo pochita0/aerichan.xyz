@@ -16,12 +16,10 @@ const LOOP_CENTER_INDEX = Math.floor(LOOP_MULTIPLIER / 2);
 
 const Column = React.memo(({
     items,
-    items,
     type,
     onValueChange,
     setRef
 }: {
-    items: (string | number)[],
     items: (string | number)[],
     type: 'hour' | 'minute' | 'ampm',
     onValueChange: (val: string | number) => void,

@@ -465,10 +465,10 @@ export const BookmarkWidget: React.FC = () => {
           e.dataTransfer.setData('text/plain', child.id);
           e.dataTransfer.effectAllowed = 'move';
         }}
-        onMouseDown={(e) => { e.stopPropagation(); handlePressStart(e); }}
+        onMouseDown={(e) => { e.stopPropagation(); handlePressStart(); }}
         onMouseUp={(e) => { e.stopPropagation(); handlePressEnd(); }}
         onMouseLeave={() => { handlePressEnd(); }}
-        onTouchStart={(e) => { e.stopPropagation(); handlePressStart(e); }}
+        onTouchStart={(e) => { e.stopPropagation(); handlePressStart(); }}
         onTouchEnd={(e) => { e.stopPropagation(); handlePressEnd(); }}
         onClick={(e) => {
           e.stopPropagation();
@@ -539,7 +539,6 @@ export const BookmarkWidget: React.FC = () => {
   const renderItem = (item: BookmarkItem, inFolderPopup = false) => {
     const isFolder = item.type === 'folder';
     const isOver = dragOverId === item.id;
-    const isHovered = hoveredId === item.id;
 
     // Folder: 2x2 size (2 apps + gap). App: 1x1 size.
     // App: 64px, Grid Gap: 8px (gap-2)
@@ -568,11 +567,11 @@ export const BookmarkWidget: React.FC = () => {
         onDragStart={(e) => handleDragStart(e, item.id)}
         onDragOver={(e) => { e.stopPropagation(); handleDragOver(e, item.id); }}
         onDrop={(e) => { e.stopPropagation(); handleDrop(e, item.id, inFolderPopup); }}
-        onMouseDown={handlePressStart}
+        onMouseDown={() => handlePressStart()}
         onMouseUp={handlePressEnd}
         onMouseLeave={() => { handlePressEnd(); setHoveredId(null); }}
         onMouseEnter={() => setHoveredId(item.id)}
-        onTouchStart={handlePressStart}
+        onTouchStart={() => handlePressStart()}
         onTouchEnd={handlePressEnd}
         onClick={(e) => {
           if (editMode) { e.stopPropagation(); return; }

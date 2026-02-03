@@ -492,625 +492,625 @@ export const TodoWidget: React.FC = () => {
     return () => clearInterval(timer);
   }, [todos, setTodos]);
 
-  const handleAddTodo = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (inputValue.trim()) {
-      const newTodo: TodoItem = {
-        id: Date.now().toString(),
-        title: inputValue.trim(),
-        completed: false,
-        recurring: recurringType === 'none' ? undefined : recurringType,
-        createdAt: new Date().toISOString(),
-      };
-      setTodos([...todos, newTodo]);
-      setInputValue('');
-      setRecurringType('none');
-    }
-  };
 
-  const handleModalSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (modalTitle.trim()) {
-      const newTodo: TodoItem = {
-        id: Date.now().toString(),
-        title: modalTitle.trim(),
-        completed: false,
-        dueDate: modalDate || undefined,
-        dueTime: modalTime || undefined,
-        recurring: isRecurring ? modalRecurringType : undefined,
-        createdAt: new Date().toISOString(),
-        alarm: isAlarm ? {
-          enabled: true,
-          interval: parseInt(alarmInterval) || 1,
-          unit: alarmUnit,
-          lastFired: Date.now()
-        } : undefined,
-      };
-
-      if (parentTodoId) {
-        // Add as sub-task
-        const addSubTaskToTree = (items: TodoItem[]): TodoItem[] => {
-          return items.map((item) => {
-            if (item.id === parentTodoId) {
-              return {
-                ...item,
-                subTodos: [...(item.subTodos || []), newTodo],
-                isExpanded: true,
-              };
-            }
-            if (item.subTodos) {
-              return { ...item, subTodos: addSubTaskToTree(item.subTodos) };
-            }
-            return item;
-          });
-        };
-        setTodos((prev) => addSubTaskToTree(prev));
-      } else {
-        // Add as top-level task
-        setTodos([...todos, newTodo]);
-      }
-
-      closeModal();
-    }
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setParentTodoId(null);
-    setModalTitle('');
-    setModalDate('');
-    setModalTime('');
-    setIsRecurring(false);
-    setModalRecurringType('daily');
-    setIsAlarm(false);
-    setAlarmInterval('1');
-    setAlarmUnit('hour');
-  };
-
-  /* Helper Functions */
-
-  const getDueDateStatus = (dueDate?: string) => {
-    if (!dueDate) return 'none';
-    const today = new Date().toISOString().split('T')[0];
-    if (dueDate < today) return 'overdue';
-    if (dueDate === today) return 'today';
-    return 'upcoming';
-  };
-
-  const formatDueDateTime = (dueDate?: string, dueTime?: string) => {
-    if (!dueDate) return '';
-    const date = new Date(dueDate);
-    const dateStr = date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
-    if (dueTime) {
-      return `${dateStr} ${dueTime} `;
-    }
-    return dateStr;
-  };
-
-  // Recursive update helper
-  const updateTodoInTree = (items: TodoItem[], id: string, updater: (item: TodoItem) => TodoItem | null): TodoItem[] => {
-    return items.reduce<TodoItem[]>((acc, item) => {
-      if (item.id === id) {
-        const updated = updater(item);
-        if (updated) acc.push(updated);
-      } else {
-        const newItem = { ...item };
-        if (item.subTodos) {
-          newItem.subTodos = updateTodoInTree(newItem.subTodos, id, updater);
-        }
-        acc.push(newItem);
-      }
-      return acc;
-    }, []);
-  };
-
-  // Sub-task handlers
-  const handleAddSubTask = (parentId: string) => {
-    const newSubTodo: TodoItem = {
+  e.preventDefault();
+  if (inputValue.trim()) {
+    const newTodo: TodoItem = {
       id: Date.now().toString(),
-      title: '새 하위 할 일',
+      title: inputValue.trim(),
       completed: false,
+      recurring: recurringType === 'none' ? undefined : recurringType,
       createdAt: new Date().toISOString(),
-      recurring: 'none',
+    };
+    setTodos([...todos, newTodo]);
+    setInputValue('');
+    setRecurringType('none');
+  }
+};
+
+const handleModalSubmit = (e: React.FormEvent) => {
+  e.preventDefault();
+  if (modalTitle.trim()) {
+    const newTodo: TodoItem = {
+      id: Date.now().toString(),
+      title: modalTitle.trim(),
+      completed: false,
+      dueDate: modalDate || undefined,
+      dueTime: modalTime || undefined,
+      recurring: isRecurring ? modalRecurringType : undefined,
+      createdAt: new Date().toISOString(),
+      alarm: isAlarm ? {
+        enabled: true,
+        interval: parseInt(alarmInterval) || 1,
+        unit: alarmUnit,
+        lastFired: Date.now()
+      } : undefined,
     };
 
-    const addSubTaskToTree = (items: TodoItem[]): TodoItem[] => {
-      return items.map((item) => {
-        if (item.id === parentId) {
-          return {
-            ...item,
-            subTodos: [...(item.subTodos || []), newSubTodo],
-            isExpanded: true,
-          };
-        }
-        if (item.subTodos) {
-          return { ...item, subTodos: addSubTaskToTree(item.subTodos) };
-        }
-        return item;
-      });
-    };
-
-    setTodos((prev) => addSubTaskToTree(prev));
-    // setContextMenu(null); // Assuming setContextMenu is not defined or needed here
-    startEditing(newSubTodo);
-  };
-
-  const toggleSubTasks = (todoId: string) => {
-    const toggleInTree = (items: TodoItem[]): TodoItem[] => {
-      return items.map((item) => {
-        if (item.id === todoId) {
-          return { ...item, isExpanded: !item.isExpanded };
-        }
-        if (item.subTodos) {
-          return { ...item, subTodos: toggleInTree(item.subTodos) };
-        }
-        return item;
-      });
-    };
-    setTodos((prev) => toggleInTree(prev));
-  };
-
-  // Synchronize parent completion status based on children (Bottom-up sync)
-  const syncCompletionStatus = (items: TodoItem[]): TodoItem[] => {
-    return items.map((item) => {
-      let newItem = { ...item };
-      if (newItem.subTodos && newItem.subTodos.length > 0) {
-        // First sync children recursively
-        newItem.subTodos = syncCompletionStatus(newItem.subTodos);
-
-        // Then check if all children are completed
-        const allCompleted = newItem.subTodos.every((sub) => sub.completed);
-
-        // Update parent status if different
-        if (newItem.completed !== allCompleted) {
-          newItem.completed = allCompleted;
-          // Automatically collapse if completed
-          if (allCompleted) {
-            newItem.isExpanded = false;
+    if (parentTodoId) {
+      // Add as sub-task
+      const addSubTaskToTree = (items: TodoItem[]): TodoItem[] => {
+        return items.map((item) => {
+          if (item.id === parentTodoId) {
+            return {
+              ...item,
+              subTodos: [...(item.subTodos || []), newTodo],
+              isExpanded: true,
+            };
           }
+          if (item.subTodos) {
+            return { ...item, subTodos: addSubTaskToTree(item.subTodos) };
+          }
+          return item;
+        });
+      };
+      setTodos((prev) => addSubTaskToTree(prev));
+    } else {
+      // Add as top-level task
+      setTodos([...todos, newTodo]);
+    }
+
+    closeModal();
+  }
+};
+
+const closeModal = () => {
+  setIsModalOpen(false);
+  setParentTodoId(null);
+  setModalTitle('');
+  setModalDate('');
+  setModalTime('');
+  setIsRecurring(false);
+  setModalRecurringType('daily');
+  setIsAlarm(false);
+  setAlarmInterval('1');
+  setAlarmUnit('hour');
+};
+
+/* Helper Functions */
+
+const getDueDateStatus = (dueDate?: string) => {
+  if (!dueDate) return 'none';
+  const today = new Date().toISOString().split('T')[0];
+  if (dueDate < today) return 'overdue';
+  if (dueDate === today) return 'today';
+  return 'upcoming';
+};
+
+const formatDueDateTime = (dueDate?: string, dueTime?: string) => {
+  if (!dueDate) return '';
+  const date = new Date(dueDate);
+  const dateStr = date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+  if (dueTime) {
+    return `${dateStr} ${dueTime} `;
+  }
+  return dateStr;
+};
+
+// Recursive update helper
+const updateTodoInTree = (items: TodoItem[], id: string, updater: (item: TodoItem) => TodoItem | null): TodoItem[] => {
+  return items.reduce<TodoItem[]>((acc, item) => {
+    if (item.id === id) {
+      const updated = updater(item);
+      if (updated) acc.push(updated);
+    } else {
+      const newItem = { ...item };
+      if (item.subTodos) {
+        newItem.subTodos = updateTodoInTree(newItem.subTodos || [], id, updater);
+      }
+      acc.push(newItem);
+    }
+    return acc;
+  }, []);
+};
+
+// Sub-task handlers
+const addSubTodo = (parentId: string) => {
+  const newSubTodo: TodoItem = {
+    id: Date.now().toString(),
+    title: '새 하위 할 일',
+    completed: false,
+    createdAt: new Date().toISOString(),
+    recurring: 'none',
+  };
+
+  const addSubTaskToTree = (items: TodoItem[]): TodoItem[] => {
+    return items.map((item) => {
+      if (item.id === parentId) {
+        return {
+          ...item,
+          subTodos: [...(item.subTodos || []), newSubTodo],
+          isExpanded: true,
+        };
+      }
+      if (item.subTodos) {
+        return { ...item, subTodos: addSubTaskToTree(item.subTodos) };
+      }
+      return item;
+    });
+  };
+
+  setTodos((prev) => addSubTaskToTree(prev));
+  // setContextMenu(null); // Assuming setContextMenu is not defined or needed here
+  startEditing(newSubTodo);
+};
+
+const toggleSubTasks = (todoId: string) => {
+  const toggleInTree = (items: TodoItem[]): TodoItem[] => {
+    return items.map((item) => {
+      if (item.id === todoId) {
+        return { ...item, isExpanded: !item.isExpanded };
+      }
+      if (item.subTodos) {
+        return { ...item, subTodos: toggleInTree(item.subTodos) };
+      }
+      return item;
+    });
+  };
+  setTodos((prev) => toggleInTree(prev));
+};
+
+// Synchronize parent completion status based on children (Bottom-up sync)
+const syncCompletionStatus = (items: TodoItem[]): TodoItem[] => {
+  return items.map((item) => {
+    let newItem = { ...item };
+    if (newItem.subTodos && newItem.subTodos.length > 0) {
+      // First sync children recursively
+      newItem.subTodos = syncCompletionStatus(newItem.subTodos);
+
+      // Then check if all children are completed
+      const allCompleted = newItem.subTodos.every((sub) => sub.completed);
+
+      // Update parent status if different
+      if (newItem.completed !== allCompleted) {
+        newItem.completed = allCompleted;
+        // Automatically collapse if completed
+        if (allCompleted) {
+          newItem.isExpanded = false;
         }
       }
-      return newItem;
-    });
-  };
-
-  // Main handlers (recursive)
-  const toggleTodo = (id: string, hasSubTodos: boolean) => {
-    if (hasSubTodos) {
-      toggleSubTasks(id);
-      return;
     }
+    return newItem;
+  });
+};
 
-    const today = new Date().toISOString().split('T')[0];
-    setTodos((prev) => {
-      const toggled = updateTodoInTree(prev, id, (item) => {
-        const newCompleted = !item.completed;
-        if (newCompleted && item.recurring && item.recurring !== 'none') {
-          return { ...item, completed: newCompleted, lastCompletedDate: today };
-        }
-        return { ...item, completed: newCompleted };
-      });
+// Main handlers (recursive)
+const toggleTodo = (id: string, hasSubTodos: boolean) => {
+  if (hasSubTodos) {
+    toggleSubTasks(id);
+    return;
+  }
 
-      return syncCompletionStatus(toggled);
+  const today = new Date().toISOString().split('T')[0];
+  setTodos((prev) => {
+    const toggled = updateTodoInTree(prev, id, (item) => {
+      const newCompleted = !item.completed;
+      if (newCompleted && item.recurring && item.recurring !== 'none') {
+        return { ...item, completed: newCompleted, lastCompletedDate: today };
+      }
+      return { ...item, completed: newCompleted };
+    });
+
+    return syncCompletionStatus(toggled);
+  });
+};
+
+const deleteTodo = (id: string) => {
+  setTodos((prev) => updateTodoInTree(prev, id, () => null));
+};
+
+const startEditing = (todo: TodoItem) => {
+  setEditingId(todo.id);
+  setEditingText(todo.title);
+  setEditingRecurring(todo.recurring || 'none');
+};
+
+const saveEdit = () => {
+  if (!editingId || !editingText.trim()) return;
+
+  setTodos((prev) => updateTodoInTree(prev, editingId, (item) => ({
+    ...item,
+    title: editingText.trim(),
+    recurring: editingRecurring === 'none' ? undefined : editingRecurring,
+  })));
+
+  setEditingId(null);
+  setEditingText('');
+  setEditingRecurring('none');
+};
+
+const cancelEdit = () => {
+  setEditingId(null);
+  setEditingText('');
+  setEditingRecurring('none');
+};
+
+const getRecurringIcon = (recurring?: 'none' | 'daily' | 'weekly' | 'monthly') => {
+  return null;
+};
+
+// Drag & Drop handlers
+const handleDragStart = (e: React.DragEvent, id: string) => {
+  setDraggedId(id);
+  e.dataTransfer.setData('text/plain', id);
+  e.dataTransfer.effectAllowed = 'move';
+};
+
+const handleDragOver = (e: React.DragEvent, targetId: string, depth: number) => {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  // Only allow dropping on root-level items (max depth 1 for sub-tasks)
+  if (targetId !== draggedId && depth === 0) {
+    setDragOverId(targetId);
+  }
+};
+
+const handleDragLeave = () => {
+  setDragOverId(null);
+};
+
+const handleDrop = (e: React.DragEvent, targetId: string, depth: number) => {
+  e.preventDefault();
+  setDragOverId(null);
+  setDraggedId(null);
+
+  const sourceId = e.dataTransfer.getData('text/plain');
+  if (!sourceId || sourceId === targetId || depth > 0) return;
+
+  // Find and remove source todo from tree
+  const findAndRemove = (items: TodoItem[]): { items: TodoItem[], removed: TodoItem | null } => {
+    let removed: TodoItem | null = null;
+    const filtered = items.filter(item => {
+      if (item.id === sourceId) {
+        removed = item;
+        return false;
+      }
+      return true;
+    }).map(item => {
+      if (item.subTodos && item.subTodos.length > 0) {
+        const result = findAndRemove(item.subTodos);
+        if (result.removed) removed = result.removed;
+        return { ...item, subTodos: result.items };
+      }
+      return item;
+    });
+    return { items: filtered, removed };
+  };
+
+  const { items: newTodos, removed } = findAndRemove(todos);
+  if (!removed) return;
+
+  // Add removed item as sub-task of target
+  const addAsSubTask = (items: TodoItem[]): TodoItem[] => {
+    return items.map(item => {
+      if (item.id === targetId) {
+        const subTodos = item.subTodos || [];
+        return {
+          ...item,
+          subTodos: [...subTodos, { ...removed!, subTodos: undefined }],
+          isExpanded: true
+        };
+      }
+      if (item.subTodos) {
+        return { ...item, subTodos: addAsSubTask(item.subTodos) };
+      }
+      return item;
     });
   };
 
-  const deleteTodo = (id: string) => {
-    setTodos((prev) => updateTodoInTree(prev, id, () => null));
-  };
+  setTodos(syncCompletionStatus(addAsSubTask(newTodos)));
+};
 
-  const startEditing = (todo: TodoItem) => {
-    setEditingId(todo.id);
-    setEditingText(todo.title);
-    setEditingRecurring(todo.recurring || 'none');
-  };
-
-  const saveEdit = () => {
-    if (!editingId || !editingText.trim()) return;
-
-    setTodos((prev) => updateTodoInTree(prev, editingId, (item) => ({
-      ...item,
-      title: editingText.trim(),
-      recurring: editingRecurring === 'none' ? undefined : editingRecurring,
-    })));
-
-    setEditingId(null);
-    setEditingText('');
-    setEditingRecurring('none');
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditingText('');
-    setEditingRecurring('none');
-  };
-
-  const getRecurringIcon = (recurring?: 'none' | 'daily' | 'weekly' | 'monthly') => {
-    return null;
-  };
-
-  // Drag & Drop handlers
-  const handleDragStart = (e: React.DragEvent, id: string) => {
-    setDraggedId(id);
-    e.dataTransfer.setData('text/plain', id);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDragOver = (e: React.DragEvent, targetId: string, depth: number) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    // Only allow dropping on root-level items (max depth 1 for sub-tasks)
-    if (targetId !== draggedId && depth === 0) {
-      setDragOverId(targetId);
-    }
-  };
-
-  const handleDragLeave = () => {
-    setDragOverId(null);
-  };
-
-  const handleDrop = (e: React.DragEvent, targetId: string, depth: number) => {
-    e.preventDefault();
-    setDragOverId(null);
-    setDraggedId(null);
-
-    const sourceId = e.dataTransfer.getData('text/plain');
-    if (!sourceId || sourceId === targetId || depth > 0) return;
-
-    // Find and remove source todo from tree
-    const findAndRemove = (items: TodoItem[]): { items: TodoItem[], removed: TodoItem | null } => {
-      let removed: TodoItem | null = null;
-      const filtered = items.filter(item => {
-        if (item.id === sourceId) {
-          removed = item;
-          return false;
-        }
-        return true;
-      }).map(item => {
-        if (item.subTodos && item.subTodos.length > 0) {
-          const result = findAndRemove(item.subTodos);
-          if (result.removed) removed = result.removed;
-          return { ...item, subTodos: result.items };
-        }
-        return item;
-      });
-      return { items: filtered, removed };
-    };
-
-    const { items: newTodos, removed } = findAndRemove(todos);
-    if (!removed) return;
-
-    // Add removed item as sub-task of target
-    const addAsSubTask = (items: TodoItem[]): TodoItem[] => {
-      return items.map(item => {
-        if (item.id === targetId) {
-          const subTodos = item.subTodos || [];
-          return {
-            ...item,
-            subTodos: [...subTodos, { ...removed!, subTodos: undefined }],
-            isExpanded: true
-          };
-        }
-        if (item.subTodos) {
-          return { ...item, subTodos: addAsSubTask(item.subTodos) };
-        }
-        return item;
-      });
-    };
-
-    setTodos(syncCompletionStatus(addAsSubTask(newTodos)));
-  };
-
-  // Recursive renderer
-  const renderTodoTree = (items: TodoItem[], depth = 0) => {
-    return items.map((todo) => {
-      const hasSubTodos = !!(todo.subTodos && todo.subTodos.length > 0);
-      const isDragOver = dragOverId === todo.id;
-      return (
-        <div
-          key={todo.id}
-          className={`w-full transition-all duration-150 ${isDragOver ? 'ring-2 ring-blue-400 rounded-lg bg-blue-500/10' : ''} `}
-          draggable
-          onDragStart={(e) => handleDragStart(e, todo.id)}
-          onDragOver={(e) => handleDragOver(e, todo.id, depth)}
-          onDragLeave={handleDragLeave}
-          onDrop={(e) => handleDrop(e, todo.id, depth)}
-        >
-          <SwipeableTodoItem
-            todo={todo}
-            depth={depth}
-            hasSubTodos={hasSubTodos}
-            isExpanded={todo.isExpanded}
-            onToggleSubTasks={() => toggleSubTasks(todo.id)}
-            onContextMenu={(e) => handleContextMenu(e, todo.id, depth)}
-            isEditing={editingId === todo.id}
-            editingText={editingText}
-            editingRecurring={editingRecurring}
-            onToggle={() => toggleTodo(todo.id, hasSubTodos)}
-            onDelete={() => deleteTodo(todo.id)}
-            onStartEdit={() => startEditing(todo)}
-            onEditTextChange={setEditingText}
-            onEditRecurringChange={setEditingRecurring}
-            onSaveEdit={saveEdit}
-            onCancelEdit={cancelEdit}
-            getDueDateStatus={getDueDateStatus}
-            formatDueDateTime={formatDueDateTime}
-            getRecurringIcon={getRecurringIcon}
-          />
-          {hasSubTodos && (
-            <div className={`expand-wrapper ${todo.isExpanded ? 'expanded' : ''} `}>
-              <div className="expand-inner">
-                {renderTodoTree(todo.subTodos, depth + 1)}
-              </div>
-            </div>
-          )}
-        </div>
-      );
-    });
-  };
-
-  // Sort: recurring first, then by nearest due date, then no-date items.
-  const sortedTodos = useMemo(() => {
-    return [...todos].sort((a, b) => {
-      // Recurring tasks always first
-      const aRecurring = !!(a.recurring && a.recurring !== 'none');
-      const bRecurring = !!(b.recurring && b.recurring !== 'none');
-      if (aRecurring !== bRecurring) return aRecurring ? -1 : 1;
-
-      // Among the rest, dated tasks sorted by nearest due date
-      if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
-      if (a.dueDate && !b.dueDate) return -1;
-      if (!a.dueDate && b.dueDate) return 1;
-
-      return 0;
-    });
-  }, [todos]);
-
-  return (
-    <WidgetWrapper title="Todo List">
-      <div className="flex flex-col h-full relative group/container">
-        {/* Todo List-Drop zone for moving items to root */}
-        <div
-          className="flex-1 overflow-y-auto space-y-2 overscroll-contain pb-2"
-          onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
-          onDrop={(e) => {
-            e.preventDefault();
-            const sourceId = e.dataTransfer.getData('text/plain');
-            if (!sourceId) return;
-
-            // Find and move to root
-            const moveToRoot = (items: TodoItem[]): { items: TodoItem[], moved: TodoItem | null } => {
-              let moved: TodoItem | null = null;
-              const newItems: TodoItem[] = [];
-              for (const item of items) {
-                if (item.subTodos && item.subTodos.length > 0) {
-                  const foundInSub = item.subTodos.find(s => s.id === sourceId);
-                  if (foundInSub) {
-                    moved = foundInSub;
-                    newItems.push({ ...item, subTodos: item.subTodos.filter(s => s.id !== sourceId) });
-                  } else {
-                    const result = moveToRoot(item.subTodos);
-                    if (result.moved) moved = result.moved;
-                    newItems.push({ ...item, subTodos: result.items });
-                  }
-                } else {
-                  newItems.push(item);
-                }
-              }
-              return { items: newItems, moved };
-            };
-
-            const { items: newTodos, moved } = moveToRoot(todos);
-            if (moved) {
-              setTodos(syncCompletionStatus([...newTodos, moved]));
-            }
-            setDraggedId(null);
-            setDragOverId(null);
-          }}
-        >
-          {todos.length === 0 ? (
-            <p className="text-gray-400 text-sm text-center py-8">
-              No tasks yet. Click the + button to add one!
-            </p>
-          ) : (
-            <>
-              {renderTodoTree(sortedTodos.filter(t => t.recurring && t.recurring !== 'none'))}
-
-              {sortedTodos.some(t => t.recurring && t.recurring !== 'none') &&
-                sortedTodos.some(t => !t.recurring || t.recurring === 'none') && (
-                  <div className="my-3 border-t border-gray-200 dark:border-gray-700 mx-2" />
-                )}
-
-              {renderTodoTree(sortedTodos.filter(t => !t.recurring || t.recurring === 'none'))}
-            </>
-          )}
-
-
-        </div>
-
-        {/* Floating Action Button */}
-        {/* Floating Action Button */}
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="absolute bottom-5 right-5 w-11 h-11 bg-white/10 border border-white/20 hover:bg-white/20 text-white rounded-full shadow-lg backdrop-blur-md transition-all duration-200 flex items-center justify-center active:scale-95 z-10 opacity-0 group-hover/container:opacity-100 translate-y-2 group-hover/container:translate-y-0"
-          title="Add new task"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
-        </button>
-
-        {/* Modal */}
-        {isModalOpen && (
-          <div
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-            onClick={(e) => e.target === e.currentTarget && closeModal()}
-          >
-            <div
-              className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl w-full max-w-md p-6 space-y-4 overflow-visible shadow-2xl animate-scale-in"
-              style={{ boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)" }}
-            >
-              <h2 className="text-xl font-semibold text-white">
-                {parentTodoId ? 'Add Sub Task' : 'Add New Task'}
-              </h2>
-
-              <form onSubmit={handleModalSubmit} className="space-y-4">
-                {/* Title */}
-                <div>
-                  <label
-                    htmlFor="modal-title"
-                    className="block text-sm font-medium text-white/80 mb-1"
-                  >
-                    Title <span className="text-white/80">*</span>
-                  </label>
-                  <input
-                    id="modal-title"
-                    type="text"
-                    value={modalTitle}
-                    onChange={(e) => setModalTitle(e.target.value)}
-                    placeholder="What do you need to do?"
-                    className="w-full px-3 py-2 border border-white/10 rounded-xl bg-white/5 text-white placeholder-white/30 focus:outline-none focus:bg-white/10 focus:border-white/30 transition-all"
-                    autoFocus
-                    required
-                  />
-                </div>
-
-                {/* Checkboxes Row */}
-                <div className="flex items-center gap-6 mb-4">
-
-
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={isRecurring}
-                      onChange={(e) => setIsRecurring(e.target.checked)}
-                      className="w-4 h-4 text-blue-400 rounded focus:ring-0 bg-white/10 border-white/20"
-                    />
-                    <span className="text-sm font-medium text-white/80">
-                      Recurring Task
-                    </span>
-                  </label>
-
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={isAlarm}
-                      onChange={(e) => setIsAlarm(e.target.checked)}
-                      className="w-4 h-4 text-blue-400 rounded focus:ring-0 bg-white/10 border-white/20"
-                    />
-                    <span className="text-sm font-medium text-white/80">
-                      Set Alarm
-                    </span>
-                  </label>
-                </div>
-
-                {/* Main Content Flex */}
-                <div className="flex gap-4">
-
-                  {/* Left Column: Settings (Visible only when settings active) */}
-
-
-                  {/* Date/Time (Hidden when Recurring) */}
-                  {!isRecurring && (
-                    <div className={`space-y-4 transition-all duration-500 ease -in -out ${isAlarm ? 'w-[calc(50%-0.5rem)]' : 'w-full'} animate -in fade -in zoom -in `}>
-                      <div>
-                        <label htmlFor="modal-date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Due Date
-                        </label>
-                        <CalendarPicker
-                          value={modalDate}
-                          onChange={setModalDate}
-                        />
-                      </div>
-                      <div>
-
-                        <label htmlFor="modal-time" className="block text-sm font-medium text-white/80 mb-1">
-                          Due Time
-                        </label>
-                        <GlassTimePicker
-                          value={modalTime}
-                          onChange={setModalTime}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Repeats (Show if Recurring) */}
-                  {isRecurring && (
-                    <div className={`space-y-4 transition-all duration-500 ease -in -out ${isAlarm ? 'w-[calc(50%-0.5rem)]' : 'w-full'} animate -in fade -in zoom -in `}>
-                      <div>
-                        <label className="block text-sm font-medium text-white/80 mb-1">
-                          Repeats
-                        </label>
-                        <select
-                          value={modalRecurringType}
-                          onChange={(e) => setModalRecurringType(e.target.value as any)}
-                          className="w-full px-3 py-2 border border-white/10 rounded-xl bg-white/5 text-white focus:outline-none focus:bg-white/10 focus:border-white/30 transition-all [color-scheme:dark]"
-                        >
-                          <option value="daily" className="bg-gray-800">Daily</option>
-                          <option value="weekly" className="bg-gray-800">Weekly</option>
-                          <option value="monthly" className="bg-gray-800">Monthly</option>
-                        </select>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Alarm (Show if Alarm) */}
-                  {isAlarm && (
-                    <div className="space-y-4 w-[calc(50%-0.5rem)] animate-in fade-in slide-in-from-right-2 duration-500">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Alarm Interval
-                        </label>
-                        <input
-                          type="number"
-                          value={alarmInterval}
-                          onChange={(e) => setAlarmInterval(e.target.value)}
-                          className="w-full px-3 py-2 border border-white/10 rounded-md bg-white/5 text-white focus:outline-none focus:bg-white/10 focus:border-white/30"
-                          min={alarmUnit === 'minute' ? "5" : "1"}
-                          step={alarmUnit === 'minute' ? "5" : "1"}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 invisible">
-                          Unit
-                        </label>
-                        <select
-                          value={alarmUnit}
-                          onChange={(e) => setAlarmUnit(e.target.value as any)}
-                          className="w-full px-3 py-2 border border-white/10 rounded-md bg-white/5 text-white focus:outline-none focus:bg-white/10 focus:border-white/30"
-                        >
-                          <option value="minute">Minutes</option>
-                          <option value="hour">Hours</option>
-                        </select>
-                        <p className="text-xs text-gray-500 mt-1">Sounds every interval.</p>
-                      </div>
-                    </div>
-                  )}
-
-                </div>
-
-                {/* Buttons */}
-                <div className="flex gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={closeModal}
-                    className="flex-1 px-4 py-2 border border-white/10 text-white/60 rounded-xl hover:bg-white/10 hover:text-white transition-colors focus:outline-none"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 px-4 py-2 bg-white/10 border border-white/20 text-white rounded-xl hover:bg-white/20 transition-colors focus:outline-none shadow-lg"
-                  >
-                    Add Task
-                  </button>
-                </div>
-              </form>
+// Recursive renderer
+const renderTodoTree = (items: TodoItem[], depth = 0) => {
+  return items.map((todo) => {
+    const hasSubTodos = !!(todo.subTodos && todo.subTodos.length > 0);
+    const isDragOver = dragOverId === todo.id;
+    return (
+      <div
+        key={todo.id}
+        className={`w-full transition-all duration-150 ${isDragOver ? 'ring-2 ring-blue-400 rounded-lg bg-blue-500/10' : ''} `}
+        draggable
+        onDragStart={(e) => handleDragStart(e, todo.id)}
+        onDragOver={(e) => handleDragOver(e, todo.id, depth)}
+        onDragLeave={handleDragLeave}
+        onDrop={(e) => handleDrop(e, todo.id, depth)}
+      >
+        <SwipeableTodoItem
+          todo={todo}
+          depth={depth}
+          hasSubTodos={hasSubTodos}
+          isExpanded={todo.isExpanded}
+          onToggleSubTasks={() => toggleSubTasks(todo.id)}
+          onContextMenu={(e) => handleContextMenu(e, todo.id, depth)}
+          isEditing={editingId === todo.id}
+          editingText={editingText}
+          editingRecurring={editingRecurring}
+          onToggle={() => toggleTodo(todo.id, hasSubTodos)}
+          onDelete={() => deleteTodo(todo.id)}
+          onStartEdit={() => startEditing(todo)}
+          onEditTextChange={setEditingText}
+          onEditRecurringChange={setEditingRecurring}
+          onSaveEdit={saveEdit}
+          onCancelEdit={cancelEdit}
+          getDueDateStatus={getDueDateStatus}
+          formatDueDateTime={formatDueDateTime}
+          getRecurringIcon={getRecurringIcon}
+        />
+        {hasSubTodos && (
+          <div className={`expand-wrapper ${todo.isExpanded ? 'expanded' : ''} `}>
+            <div className="expand-inner">
+              {renderTodoTree(todo.subTodos || [], depth + 1)}
             </div>
           </div>
-        )
-        }
-      </div >
-    </WidgetWrapper >
-  );
+        )}
+      </div>
+    );
+  });
+};
+
+// Sort: recurring first, then by nearest due date, then no-date items.
+const sortedTodos = useMemo(() => {
+  return [...todos].sort((a, b) => {
+    // Recurring tasks always first
+    const aRecurring = !!(a.recurring && a.recurring !== 'none');
+    const bRecurring = !!(b.recurring && b.recurring !== 'none');
+    if (aRecurring !== bRecurring) return aRecurring ? -1 : 1;
+
+    // Among the rest, dated tasks sorted by nearest due date
+    if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
+    if (a.dueDate && !b.dueDate) return -1;
+    if (!a.dueDate && b.dueDate) return 1;
+
+    return 0;
+  });
+}, [todos]);
+
+return (
+  <WidgetWrapper title="Todo List">
+    <div className="flex flex-col h-full relative group/container">
+      {/* Todo List-Drop zone for moving items to root */}
+      <div
+        className="flex-1 overflow-y-auto space-y-2 overscroll-contain pb-2"
+        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+        onDrop={(e) => {
+          e.preventDefault();
+          const sourceId = e.dataTransfer.getData('text/plain');
+          if (!sourceId) return;
+
+          // Find and move to root
+          const moveToRoot = (items: TodoItem[]): { items: TodoItem[], moved: TodoItem | null } => {
+            let moved: TodoItem | null = null;
+            const newItems: TodoItem[] = [];
+            for (const item of items) {
+              if (item.subTodos && item.subTodos.length > 0) {
+                const foundInSub = item.subTodos.find(s => s.id === sourceId);
+                if (foundInSub) {
+                  moved = foundInSub;
+                  newItems.push({ ...item, subTodos: item.subTodos.filter(s => s.id !== sourceId) });
+                } else {
+                  const result = moveToRoot(item.subTodos);
+                  if (result.moved) moved = result.moved;
+                  newItems.push({ ...item, subTodos: result.items });
+                }
+              } else {
+                newItems.push(item);
+              }
+            }
+            return { items: newItems, moved };
+          };
+
+          const { items: newTodos, moved } = moveToRoot(todos);
+          if (moved) {
+            setTodos(syncCompletionStatus([...newTodos, moved]));
+          }
+          setDraggedId(null);
+          setDragOverId(null);
+        }}
+      >
+        {todos.length === 0 ? (
+          <p className="text-gray-400 text-sm text-center py-8">
+            No tasks yet. Click the + button to add one!
+          </p>
+        ) : (
+          <>
+            {renderTodoTree(sortedTodos.filter(t => t.recurring && t.recurring !== 'none'))}
+
+            {sortedTodos.some(t => t.recurring && t.recurring !== 'none') &&
+              sortedTodos.some(t => !t.recurring || t.recurring === 'none') && (
+                <div className="my-3 border-t border-gray-200 dark:border-gray-700 mx-2" />
+              )}
+
+            {renderTodoTree(sortedTodos.filter(t => !t.recurring || t.recurring === 'none'))}
+          </>
+        )}
+
+
+      </div>
+
+      {/* Floating Action Button */}
+      {/* Floating Action Button */}
+      <button
+        onClick={() => setIsModalOpen(true)}
+        className="absolute bottom-5 right-5 w-11 h-11 bg-white/10 border border-white/20 hover:bg-white/20 text-white rounded-full shadow-lg backdrop-blur-md transition-all duration-200 flex items-center justify-center active:scale-95 z-10 opacity-0 group-hover/container:opacity-100 translate-y-2 group-hover/container:translate-y-0"
+        title="Add new task"
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
+      </button>
+
+      {/* Modal */}
+      {isModalOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={(e) => e.target === e.currentTarget && closeModal()}
+        >
+          <div
+            className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl w-full max-w-md p-6 space-y-4 overflow-visible shadow-2xl animate-scale-in"
+            style={{ boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)" }}
+          >
+            <h2 className="text-xl font-semibold text-white">
+              {parentTodoId ? 'Add Sub Task' : 'Add New Task'}
+            </h2>
+
+            <form onSubmit={handleModalSubmit} className="space-y-4">
+              {/* Title */}
+              <div>
+                <label
+                  htmlFor="modal-title"
+                  className="block text-sm font-medium text-white/80 mb-1"
+                >
+                  Title <span className="text-white/80">*</span>
+                </label>
+                <input
+                  id="modal-title"
+                  type="text"
+                  value={modalTitle}
+                  onChange={(e) => setModalTitle(e.target.value)}
+                  placeholder="What do you need to do?"
+                  className="w-full px-3 py-2 border border-white/10 rounded-xl bg-white/5 text-white placeholder-white/30 focus:outline-none focus:bg-white/10 focus:border-white/30 transition-all"
+                  autoFocus
+                  required
+                />
+              </div>
+
+              {/* Checkboxes Row */}
+              <div className="flex items-center gap-6 mb-4">
+
+
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isRecurring}
+                    onChange={(e) => setIsRecurring(e.target.checked)}
+                    className="w-4 h-4 text-blue-400 rounded focus:ring-0 bg-white/10 border-white/20"
+                  />
+                  <span className="text-sm font-medium text-white/80">
+                    Recurring Task
+                  </span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isAlarm}
+                    onChange={(e) => setIsAlarm(e.target.checked)}
+                    className="w-4 h-4 text-blue-400 rounded focus:ring-0 bg-white/10 border-white/20"
+                  />
+                  <span className="text-sm font-medium text-white/80">
+                    Set Alarm
+                  </span>
+                </label>
+              </div>
+
+              {/* Main Content Flex */}
+              <div className="flex gap-4">
+
+                {/* Left Column: Settings (Visible only when settings active) */}
+
+
+                {/* Date/Time (Hidden when Recurring) */}
+                {!isRecurring && (
+                  <div className={`space-y-4 transition-all duration-500 ease -in -out ${isAlarm ? 'w-[calc(50%-0.5rem)]' : 'w-full'} animate -in fade -in zoom -in `}>
+                    <div>
+                      <label htmlFor="modal-date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Due Date
+                      </label>
+                      <CalendarPicker
+                        value={modalDate}
+                        onChange={setModalDate}
+                      />
+                    </div>
+                    <div>
+
+                      <label htmlFor="modal-time" className="block text-sm font-medium text-white/80 mb-1">
+                        Due Time
+                      </label>
+                      <GlassTimePicker
+                        value={modalTime}
+                        onChange={setModalTime}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Repeats (Show if Recurring) */}
+                {isRecurring && (
+                  <div className={`space-y-4 transition-all duration-500 ease -in -out ${isAlarm ? 'w-[calc(50%-0.5rem)]' : 'w-full'} animate -in fade -in zoom -in `}>
+                    <div>
+                      <label className="block text-sm font-medium text-white/80 mb-1">
+                        Repeats
+                      </label>
+                      <select
+                        value={modalRecurringType}
+                        onChange={(e) => setModalRecurringType(e.target.value as any)}
+                        className="w-full px-3 py-2 border border-white/10 rounded-xl bg-white/5 text-white focus:outline-none focus:bg-white/10 focus:border-white/30 transition-all [color-scheme:dark]"
+                      >
+                        <option value="daily" className="bg-gray-800">Daily</option>
+                        <option value="weekly" className="bg-gray-800">Weekly</option>
+                        <option value="monthly" className="bg-gray-800">Monthly</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {/* Alarm (Show if Alarm) */}
+                {isAlarm && (
+                  <div className="space-y-4 w-[calc(50%-0.5rem)] animate-in fade-in slide-in-from-right-2 duration-500">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Alarm Interval
+                      </label>
+                      <input
+                        type="number"
+                        value={alarmInterval}
+                        onChange={(e) => setAlarmInterval(e.target.value)}
+                        className="w-full px-3 py-2 border border-white/10 rounded-md bg-white/5 text-white focus:outline-none focus:bg-white/10 focus:border-white/30"
+                        min={alarmUnit === 'minute' ? "5" : "1"}
+                        step={alarmUnit === 'minute' ? "5" : "1"}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 invisible">
+                        Unit
+                      </label>
+                      <select
+                        value={alarmUnit}
+                        onChange={(e) => setAlarmUnit(e.target.value as any)}
+                        className="w-full px-3 py-2 border border-white/10 rounded-md bg-white/5 text-white focus:outline-none focus:bg-white/10 focus:border-white/30"
+                      >
+                        <option value="minute">Minutes</option>
+                        <option value="hour">Hours</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">Sounds every interval.</p>
+                    </div>
+                  </div>
+                )}
+
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="flex-1 px-4 py-2 border border-white/10 text-white/60 rounded-xl hover:bg-white/10 hover:text-white transition-colors focus:outline-none"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-white/10 border border-white/20 text-white rounded-xl hover:bg-white/20 transition-colors focus:outline-none shadow-lg"
+                >
+                  Add Task
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )
+      }
+    </div >
+  </WidgetWrapper >
+);
 };
