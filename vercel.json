@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/kakao/:path*",
+      "destination": "/api/kakao/:path*"
+    },
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ]
+}

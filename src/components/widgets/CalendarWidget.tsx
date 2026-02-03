@@ -248,11 +248,7 @@ const DayDetailsModal: React.FC<DayDetailsModalProps> = ({
   if (!dateStr) return null;
 
   const date = new Date(dateStr + 'T00:00:00');
-  const dateDisplay = date.toLocaleDateString('ko-KR', {
-    month: 'long',
-    day: 'numeric',
-    weekday: 'long',
-  });
+  void date; // used for dayEvents filtering
 
   const dayEvents = events.filter((e) => {
     if (e.endDate) {

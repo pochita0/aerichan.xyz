@@ -314,8 +314,6 @@ const SwipeableTodoItem: React.FC<SwipeableTodoItemProps> = ({
 
 export const TodoWidget: React.FC = () => {
   const [todos, setTodos] = useLocalStorage<TodoItem[]>('todos', []);
-  const [inputValue, setInputValue] = useState('');
-  const [recurringType, setRecurringType] = useState<'none' | 'daily' | 'weekly' | 'monthly'>('none');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
   const [editingRecurring, setEditingRecurring] = useState<'none' | 'daily' | 'weekly' | 'monthly'>('none');
@@ -492,22 +490,6 @@ export const TodoWidget: React.FC = () => {
     return () => clearInterval(timer);
   }, [todos, setTodos]);
 
-
-  e.preventDefault();
-  if (inputValue.trim()) {
-    const newTodo: TodoItem = {
-      id: Date.now().toString(),
-      title: inputValue.trim(),
-      completed: false,
-      recurring: recurringType === 'none' ? undefined : recurringType,
-      createdAt: new Date().toISOString(),
-    };
-    setTodos([...todos, newTodo]);
-    setInputValue('');
-    setRecurringType('none');
-  }
-};
-
 const handleModalSubmit = (e: React.FormEvent) => {
   e.preventDefault();
   if (modalTitle.trim()) {
@@ -604,37 +586,6 @@ const updateTodoInTree = (items: TodoItem[], id: string, updater: (item: TodoIte
   }, []);
 };
 
-// Sub-task handlers
-const addSubTodo = (parentId: string) => {
-  const newSubTodo: TodoItem = {
-    id: Date.now().toString(),
-    title: '새 하위 할 일',
-    completed: false,
-    createdAt: new Date().toISOString(),
-    recurring: 'none',
-  };
-
-  const addSubTaskToTree = (items: TodoItem[]): TodoItem[] => {
-    return items.map((item) => {
-      if (item.id === parentId) {
-        return {
-          ...item,
-          subTodos: [...(item.subTodos || []), newSubTodo],
-          isExpanded: true,
-        };
-      }
-      if (item.subTodos) {
-        return { ...item, subTodos: addSubTaskToTree(item.subTodos) };
-      }
-      return item;
-    });
-  };
-
-  setTodos((prev) => addSubTaskToTree(prev));
-  // setContextMenu(null); // Assuming setContextMenu is not defined or needed here
-  startEditing(newSubTodo);
-};
-
 const toggleSubTasks = (todoId: string) => {
   const toggleInTree = (items: TodoItem[]): TodoItem[] => {
     return items.map((item) => {
@@ -725,7 +676,7 @@ const cancelEdit = () => {
   setEditingRecurring('none');
 };
 
-const getRecurringIcon = (recurring?: 'none' | 'daily' | 'weekly' | 'monthly') => {
+const getRecurringIcon = (_recurring?: 'none' | 'daily' | 'weekly' | 'monthly') => {
   return null;
 };
 

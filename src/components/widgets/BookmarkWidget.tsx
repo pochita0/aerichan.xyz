@@ -15,7 +15,7 @@ export const BookmarkWidget: React.FC = () => {
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [_hoveredId, setHoveredId] = useState<string | null>(null);
 
   // Folder preview state - shows folder animation when hovering over another app
   const [folderPreviewTarget, setFolderPreviewTarget] = useState<string | null>(null);
