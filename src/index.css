@@ -8,7 +8,7 @@
 /* Custom base styles */
 @layer base {
   :root {
-    font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
     line-height: 1.5;
     font-weight: 400;
 
