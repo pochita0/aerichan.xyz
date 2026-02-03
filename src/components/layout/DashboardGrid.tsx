@@ -23,9 +23,9 @@ interface DashboardGridProps {
 }
 
 // Breakpoint definitions
-// md lowered to 768 so that ~882px containers use 12 columns instead of 6
+// All breakpoints use 12 columns for consistent layout
 const breakpoints = { lg: 1200, md: 768, sm: 480, xs: 0 };
-const cols = { lg: 12, md: 12, sm: 6, xs: 4 };
+const cols = { lg: 12, md: 12, sm: 12, xs: 12 };
 
 export const DashboardGrid: React.FC<DashboardGridProps> = ({
   children,
