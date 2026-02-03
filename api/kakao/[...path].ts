@@ -1,6 +1,4 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: any, res: any) {
   const { path } = req.query;
   const pathString = Array.isArray(path) ? path.join('/') : path || '';
 
@@ -10,7 +8,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Forward query parameters
   Object.entries(req.query).forEach(([key, value]) => {
     if (key !== 'path' && value) {
-      url.searchParams.set(key, Array.isArray(value) ? value[0] : value);
+      url.searchParams.set(key, Array.isArray(value) ? value[0] : value as string);
     }
   });
 
