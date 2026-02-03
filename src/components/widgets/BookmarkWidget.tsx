@@ -5,7 +5,7 @@ import { useLocalStorage } from '../../hooks/useLocalStorage';
 import type { BookmarkItem } from '../../types';
 
 // Favicon URL with fallback
-const getFaviconUrl = (url: string, size: number = 128) => {
+const getFaviconUrl = (url: string, _size: number = 128) => {
   try {
     const hostname = new URL(url).hostname;
     // Use DuckDuckGo's favicon service as primary (better coverage)
