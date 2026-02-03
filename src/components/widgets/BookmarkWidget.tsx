@@ -695,7 +695,7 @@ export const BookmarkWidget: React.FC = () => {
               <p className="text-xs">Empty</p>
             </div>
           ) : (
-            <div className="grid grid-rows-[repeat(auto-fill,64px)] grid-flow-col auto-cols-max gap-2 h-full p-3 content-start items-start">
+            <div className="grid grid-rows-2 grid-flow-col auto-cols-max gap-3 h-full p-3 content-start items-center">
               {rootItems.map((item) => (
                 <React.Fragment key={item.id}>
                   {renderItem(item)}
