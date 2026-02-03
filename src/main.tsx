@@ -16,9 +16,7 @@ createRoot(document.getElementById('root')!).render(
           accentColor: '#676FFF',
           logo: 'https://aeri.xyz/favicon.ico', // Optional: match brand
         },
-        embeddedWallets: {
-          createOnLogin: 'users-without-wallets',
-        },
+
       }}
     >
       <App />

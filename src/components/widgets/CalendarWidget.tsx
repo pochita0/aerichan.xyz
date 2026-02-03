@@ -804,7 +804,7 @@ export const CalendarWidget: React.FC = () => {
         }}
         onEditEvent={(event) => {
           setEditingEvent(event);
-          setSelectedRange({ start: event.date, end: event.endDate || event.date });
+          setSelectedRange({ start: event.date, end: event.endDate || event.date, type: 'range' });
           setViewDate(null);
         }}
       />

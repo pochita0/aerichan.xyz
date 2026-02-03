@@ -655,7 +655,7 @@ export const BookmarkWidget: React.FC = () => {
             </div>
           ) : (
             <div className="grid grid-rows-[64px_64px] grid-flow-col auto-cols-max gap-2 h-full p-3 content-start items-start">
-              {rootItems.map((item, index) => (
+              {rootItems.map((item) => (
                 <React.Fragment key={item.id}>
                   {renderItem(item)}
                 </React.Fragment>
@@ -720,10 +720,10 @@ export const BookmarkWidget: React.FC = () => {
                     className="group flex flex-col items-center cursor-pointer hover:scale-105 transition-transform relative"
                     draggable={editMode}
                     onDragStart={(e) => handleDragStart(e, child.id)}
-                    onMouseDown={(e) => { e.stopPropagation(); handlePressStart(e); }}
+                    onMouseDown={(e) => { e.stopPropagation(); handlePressStart(); }}
                     onMouseUp={(e) => { e.stopPropagation(); handlePressEnd(); }}
                     onMouseLeave={() => { handlePressEnd(); }}
-                    onTouchStart={(e) => { e.stopPropagation(); handlePressStart(e); }}
+                    onTouchStart={(e) => { e.stopPropagation(); handlePressStart(); }}
                     onTouchEnd={(e) => { e.stopPropagation(); handlePressEnd(); }}
                     onClick={(e) => {
                       e.stopPropagation();

@@ -1,8 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import { WidgetWrapper } from './WidgetWrapper';
-import { LocationSearch } from '../common/LocationSearch';
 import { CalendarPicker } from '../../components/common/CalendarPicker';
 import { GlassTimePicker } from '../../components/common/GlassTimePicker';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
@@ -48,9 +46,6 @@ const SwipeableTodoItem: React.FC<SwipeableTodoItemProps> = ({
   formatDueDateTime,
   getRecurringIcon,
   depth = 0,
-  hasSubTodos,
-  isExpanded,
-  onToggleSubTasks,
   onContextMenu,
 }) => {
   const [translateX, setTranslateX] = useState(0);
@@ -601,7 +596,7 @@ export const TodoWidget: React.FC = () => {
       } else {
         const newItem = { ...item };
         if (item.subTodos) {
-          newItem.subTodos = updateTodoInTree(item.subTodos, id, updater);
+          newItem.subTodos = updateTodoInTree(newItem.subTodos, id, updater);
         }
         acc.push(newItem);
       }
@@ -636,7 +631,7 @@ export const TodoWidget: React.FC = () => {
     };
 
     setTodos((prev) => addSubTaskToTree(prev));
-    setContextMenu(null);
+    // setContextMenu(null); // Assuming setContextMenu is not defined or needed here
     startEditing(newSubTodo);
   };
 
