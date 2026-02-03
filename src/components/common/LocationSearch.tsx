@@ -24,7 +24,7 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({
     value,
     onChange,
     placeholder = 'Search for a place...',
-    limit = 3,
+    limit = 15,
 }) => {
     const [query, setQuery] = useState(value);
     const [results, setResults] = useState<Place[]>([]);
@@ -71,7 +71,7 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({
         try {
             console.log('Searching for:', keyword);
             const response = await fetch(
-                `/api/kakao/v2/local/search/keyword.json?query=${encodeURIComponent(keyword)}&size=15`,
+                `/api/kakao/v2/local/search/keyword.json?query=${encodeURIComponent(keyword)}&size=${limit}`,
                 {
                     headers: {
                         Authorization: `KakaoAK ${KAKAO_API_KEY}`,

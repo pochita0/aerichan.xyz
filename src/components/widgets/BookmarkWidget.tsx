@@ -107,14 +107,7 @@ export const BookmarkWidget: React.FC = () => {
     resetForm();
   };
 
-  const handleEdit = (bookmark: BookmarkItem) => {
-    setEditingId(bookmark.id);
-    setAddType(bookmark.type || 'link');
-    setName(bookmark.name);
-    setUrl(bookmark.url || '');
-    setIsAdding(true);
-    setEditMode(false);
-  };
+
 
   const deleteBookmark = (id: string) => {
     const idsToDelete = new Set<string>([id]);
@@ -129,7 +122,7 @@ export const BookmarkWidget: React.FC = () => {
       });
     }
     setBookmarks(bookmarks.filter((b) => !idsToDelete.has(b.id)));
-    if (idsToDelete.has(openFolderId || '')) setOpenFolderId(null);
+    if (expandedFolder && idsToDelete.has(expandedFolder.id)) setExpandedFolder(null);
   };
 
   const openAddModal = () => {
@@ -404,6 +397,7 @@ export const BookmarkWidget: React.FC = () => {
     if (targetItem.type === 'folder') {
       const sourceItem = bookmarks.find(b => b.id === sourceId);
       if (sourceItem?.type === 'folder') return; // Block folder into folder
+      if (!sourceItem) return;
 
       updated = [...updated.filter(b => b.id !== sourceId), { ...sourceItem, parentId: targetItem.id }];
       updated = cleanUpAllFolders(updated);

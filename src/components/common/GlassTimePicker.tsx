@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo, UIEvent, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 
 interface GlassTimePickerProps {
@@ -16,13 +16,13 @@ const LOOP_CENTER_INDEX = Math.floor(LOOP_MULTIPLIER / 2);
 
 const Column = React.memo(({
     items,
-    initialItem,
+    items,
     type,
     onValueChange,
     setRef
 }: {
     items: (string | number)[],
-    initialItem: string | number,
+    items: (string | number)[],
     type: 'hour' | 'minute' | 'ampm',
     onValueChange: (val: string | number) => void,
     setRef: (el: HTMLDivElement | null) => void
@@ -97,7 +97,7 @@ const Column = React.memo(({
     }, [updateStyles]);
 
 
-    const onScroll = (e: UIEvent<HTMLDivElement>) => {
+    const onScroll = (e: React.UIEvent<HTMLDivElement>) => {
         const target = e.currentTarget;
         const scrollTop = target.scrollTop;
 
@@ -173,7 +173,7 @@ const Column = React.memo(({
             {displayItems.map((item, i) => (
                 <div
                     key={i}
-                    ref={el => itemRefs.current[i] = el}
+                    ref={el => { itemRefs.current[i] = el; }}
                     className="h-[40px] flex items-center justify-center snap-center snap-always transition-none will-change-transform text-white/40 text-lg opacity-40 scale-95 blur-[0.5px]"
                 // Default static classes, dynamic ones handled by JS for perf
                 >
@@ -394,21 +394,18 @@ export const GlassTimePicker: React.FC<GlassTimePickerProps> = ({ value = "", on
                         */}
                         <Column
                             items={originalHours}
-                            initialItem={parseTime(value).hour}
                             type="hour"
                             onValueChange={(v) => handleColumnChange('hour', v)}
                             setRef={setHourRef}
                         />
                         <Column
                             items={originalMinutes}
-                            initialItem={parseTime(value).minute}
                             type="minute"
                             onValueChange={(v) => handleColumnChange('minute', v)}
                             setRef={setMinuteRef}
                         />
                         <Column
                             items={ampms}
-                            initialItem={parseTime(value).ampm}
                             type="ampm"
                             onValueChange={(v) => handleColumnChange('ampm', v)}
                             setRef={setAmpmRef}
