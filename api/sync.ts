@@ -40,16 +40,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(200).json({ success: true, data });
         }
 
-        // POST: Save encrypted data
+        // POST: Save user data
         if (req.method === 'POST') {
-            const { cipherText, iv } = req.body;
+            const data = req.body;
 
-            if (!cipherText || !iv) {
-                return res.status(400).json({ error: 'cipherText and iv are required' });
+            if (!data || typeof data !== 'object') {
+                return res.status(400).json({ error: 'Data object is required' });
             }
 
-            // Store encrypted data with no expiration (Upstash auto-serializes)
-            await redis.set(key, { cipherText, iv });
+            // Store data (Upstash auto-serializes)
+            await redis.set(key, data);
 
             return res.status(200).json({ success: true, message: 'Data saved successfully' });
         }
