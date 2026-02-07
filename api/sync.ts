@@ -48,8 +48,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 return res.status(400).json({ error: 'cipherText and iv are required' });
             }
 
-            // Store encrypted data with no expiration
-            await redis.set(key, JSON.stringify({ cipherText, iv }));
+            // Store encrypted data with no expiration (Upstash auto-serializes)
+            await redis.set(key, { cipherText, iv });
 
             return res.status(200).json({ success: true, message: 'Data saved successfully' });
         }

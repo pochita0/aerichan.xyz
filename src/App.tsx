@@ -122,7 +122,7 @@ function App() {
       }
 
       const result = await response.json();
-      const { cipherText, iv } = JSON.parse(result.data);
+      const { cipherText, iv } = result.data; // Already parsed by Upstash
 
       setSyncStatus('encrypting'); // Actually decrypting, but reusing status
 
