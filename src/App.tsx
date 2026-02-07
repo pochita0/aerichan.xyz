@@ -26,8 +26,7 @@ const defaultLayout = desktopLayout;
 
 import { useState, useRef } from 'react';
 import { useLocalStorage } from './hooks/useLocalStorage';
-import { usePrivy, useWallets } from '@privy-io/react-auth';
-import { deriveKeyFromSignature, encryptData, decryptData } from './utils/encryption';
+import { usePrivy } from '@privy-io/react-auth';
 
 function App() {
   const [bgImage, setBgImage] = useLocalStorage<string>('dashboard_bg_image', '/macos-wallpaper.jpg');
@@ -37,7 +36,6 @@ function App() {
 
   // Privy Auth
   const { login, logout, authenticated, user } = usePrivy();
-  const { wallets } = useWallets();
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'done' | 'error'>('idle');
   const [hasLoadedFromCloud, setHasLoadedFromCloud] = useState(false);
 
