@@ -37,14 +37,17 @@ function App() {
   // Privy Auth
   const { login, logout, authenticated, user } = usePrivy();
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'done' | 'error'>('idle');
-  const [hasLoadedFromCloud, setHasLoadedFromCloud] = useState(false);
+  const [hasLoadedFromCloud, setHasLoadedFromCloud] = useState(() => {
+    // Check if we already loaded this session
+    return sessionStorage.getItem('cloud-loaded') === 'true';
+  });
 
-  // Auto-load data when user logs in
+  // Auto-load data when user logs in (only once per session)
   React.useEffect(() => {
     if (authenticated && user?.id && !hasLoadedFromCloud) {
       loadFromCloud();
     }
-  }, [authenticated, user?.id]);
+  }, [authenticated, user?.id, hasLoadedFromCloud]);
 
   // Load data from cloud (no encryption for simplicity)
   const loadFromCloud = async () => {
@@ -60,6 +63,7 @@ function App() {
         console.log('No cloud data found, using local data');
         setSyncStatus('idle');
         setHasLoadedFromCloud(true);
+        sessionStorage.setItem('cloud-loaded', 'true');
         return;
       }
 
@@ -79,16 +83,18 @@ function App() {
         if (cloudData.settings?.bgImage) setBgImage(cloudData.settings.bgImage);
 
         console.log('Data loaded from cloud');
-        setSyncStatus('done');
         setHasLoadedFromCloud(true);
+        sessionStorage.setItem('cloud-loaded', 'true');
+        setSyncStatus('done');
 
-        // Reload to apply changes
+        // Reload once to apply changes (sessionStorage prevents loop)
         window.location.reload();
       }
     } catch (e) {
       console.error('Load from cloud failed:', e);
       setSyncStatus('error');
       setHasLoadedFromCloud(true);
+      sessionStorage.setItem('cloud-loaded', 'true');
     }
   };
 
@@ -134,6 +140,7 @@ function App() {
 
   // Manual refresh from cloud
   const refreshFromCloud = async () => {
+    sessionStorage.removeItem('cloud-loaded');
     setHasLoadedFromCloud(false);
     await loadFromCloud();
   };
