@@ -21,6 +21,7 @@ type LayoutDef = {
 interface DashboardGridProps {
   children: React.ReactNode;
   defaultLayout: LayoutDef[];
+  mobileLayout?: LayoutDef[];
 }
 
 // Breakpoint definitions
@@ -60,6 +61,7 @@ const gridBoundsConstraint = {
 export const DashboardGrid: React.FC<DashboardGridProps> = ({
   children,
   defaultLayout,
+  mobileLayout,
 }) => {
   const [savedLayouts, setSavedLayouts] = useLocalStorage<Record<string, LayoutDef[]>>(
     'dashboard-layouts-v7',
@@ -78,12 +80,21 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
   useEffect(() => {
     const updateRowHeight = () => {
       if (typeof window === 'undefined') return;
-      const MAIN_PADDING = 100;
-      const GRID_MARGIN = 16;
-      const availableHeight = window.innerHeight - MAIN_PADDING;
-      const totalMargins = GRID_MARGIN * (MAX_ROWS - 1);
-      const calculatedHeight = Math.floor((availableHeight - totalMargins) / MAX_ROWS);
-      setRowHeight(Math.max(calculatedHeight, 50));
+
+      const isMobileView = window.innerWidth < 768;
+
+      if (isMobileView) {
+        // Fixed smaller row height for mobile - allows scrolling
+        setRowHeight(80);
+      } else {
+        // Desktop: fit to viewport
+        const MAIN_PADDING = 100;
+        const GRID_MARGIN = 16;
+        const availableHeight = window.innerHeight - MAIN_PADDING;
+        const totalMargins = GRID_MARGIN * (MAX_ROWS - 1);
+        const calculatedHeight = Math.floor((availableHeight - totalMargins) / MAX_ROWS);
+        setRowHeight(Math.max(calculatedHeight, 50));
+      }
     };
     updateRowHeight();
     window.addEventListener('resize', updateRowHeight);
@@ -108,26 +119,28 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
     }));
   };
 
-  // Initialize layouts
+  // Initialize layouts with mobile support
   useEffect(() => {
+    const mobileL = mobileLayout || defaultLayout;
+
     const initLayouts = (): ResponsiveLayouts => {
       if (savedLayouts && Object.keys(savedLayouts).length > 0) {
         return {
           lg: addConstraints(savedLayouts.lg || defaultLayout),
           md: addConstraints(savedLayouts.md || defaultLayout),
-          sm: addConstraints(savedLayouts.sm || defaultLayout),
-          xs: addConstraints(savedLayouts.xs || defaultLayout),
+          sm: mobileL, // Mobile uses different layout without constraints
+          xs: mobileL,
         };
       }
       return {
         lg: addConstraints(defaultLayout),
         md: addConstraints(defaultLayout),
-        sm: addConstraints(defaultLayout),
-        xs: addConstraints(defaultLayout),
+        sm: mobileL,
+        xs: mobileL,
       };
     };
     setCurrentLayouts(initLayouts());
-  }, []);
+  }, [mobileLayout]);
 
   // Save layout changes - constrain to bounds
   const handleLayoutChange = useCallback((_layout: Layout, allLayouts: Partial<Record<string, Layout>>) => {
@@ -191,15 +204,18 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
     return result;
   }, [children, defaultLayout, isMobile]);
 
+  // Use mobile layout for smaller screens
+  const mobileL = mobileLayout || defaultLayout;
+
   const layoutsToUse = Object.keys(currentLayouts).length > 0 ? currentLayouts : {
     lg: addConstraints(defaultLayout),
     md: addConstraints(defaultLayout),
-    sm: addConstraints(defaultLayout),
-    xs: addConstraints(defaultLayout),
+    sm: mobileL,
+    xs: mobileL,
   };
 
   return (
-    <div className="p-4 sm:p-8 md:p-12" ref={containerRef}>
+    <div className={`p-4 sm:p-8 md:p-12 ${isMobile ? 'overflow-y-auto' : ''}`} ref={containerRef}>
       {mounted && containerWidth > 0 && (
         <ResponsiveGridLayout
           className="layout"
@@ -208,7 +224,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
           breakpoints={breakpoints}
           cols={cols}
           rowHeight={rowHeight}
-          maxRows={MAX_ROWS}
+          maxRows={isMobile ? undefined : MAX_ROWS}
           constraints={constraints}
           onLayoutChange={handleLayoutChange}
           onBreakpointChange={handleBreakpointChange}
