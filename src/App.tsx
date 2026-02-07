@@ -38,30 +38,71 @@ function App() {
   // Privy Auth
   const { login, logout, authenticated, user } = usePrivy();
   const { wallets } = useWallets();
-  const [syncStatus, setSyncStatus] = useState<'idle' | 'encrypting' | 'uploading' | 'downloading' | 'done' | 'error'>('idle');
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'done' | 'error'>('idle');
+  const [hasLoadedFromCloud, setHasLoadedFromCloud] = useState(false);
 
-  // Get signature for encryption key
-  const getEncryptionKey = async () => {
-    if (!authenticated || wallets.length === 0) {
-      throw new Error('Not authenticated');
+  // Auto-load data when user logs in
+  React.useEffect(() => {
+    if (authenticated && user?.id && !hasLoadedFromCloud) {
+      loadFromCloud();
     }
-    const message = "Allow Aeri Dashboard to access your encrypted storage.";
-    const wallet = wallets[0];
-    const signature = await wallet.sign(message);
-    return deriveKeyFromSignature(signature, user?.id || 'default-salt');
+  }, [authenticated, user?.id]);
+
+  // Load data from cloud (no encryption for simplicity)
+  const loadFromCloud = async () => {
+    if (!user?.id) return;
+
+    try {
+      setSyncStatus('syncing');
+
+      const response = await fetch(`/api/sync?userId=${encodeURIComponent(user.id)}`);
+
+      if (response.status === 404) {
+        // No cloud data - first time user, keep local data
+        console.log('No cloud data found, using local data');
+        setSyncStatus('idle');
+        setHasLoadedFromCloud(true);
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch data');
+      }
+
+      const result = await response.json();
+      const cloudData = result.data;
+
+      if (cloudData) {
+        // Restore data to localStorage
+        if (cloudData.todos) localStorage.setItem('todos', cloudData.todos);
+        if (cloudData.readings) localStorage.setItem('readings', cloudData.readings);
+        if (cloudData.bookmarks) localStorage.setItem('bookmarks', cloudData.bookmarks);
+        if (cloudData.calendar) localStorage.setItem('calendar-events', cloudData.calendar);
+        if (cloudData.settings?.bgImage) setBgImage(cloudData.settings.bgImage);
+
+        console.log('Data loaded from cloud');
+        setSyncStatus('done');
+        setHasLoadedFromCloud(true);
+
+        // Reload to apply changes
+        window.location.reload();
+      }
+    } catch (e) {
+      console.error('Load from cloud failed:', e);
+      setSyncStatus('error');
+      setHasLoadedFromCloud(true);
+    }
   };
 
-  // Upload encrypted data to cloud
-  const handleSync = async () => {
-    if (!authenticated || wallets.length === 0) {
-      alert('Please login and connect a wallet first to sign for encryption.');
+  // Save data to cloud
+  const saveToCloud = async () => {
+    if (!authenticated || !user?.id) {
+      alert('Please login first.');
       return;
     }
 
     try {
-      setSyncStatus('encrypting');
-
-      const key = await getEncryptionKey();
+      setSyncStatus('syncing');
 
       // Collect all data
       const allData = {
@@ -72,16 +113,11 @@ function App() {
         settings: { bgImage }
       };
 
-      // Encrypt
-      const { cipherText, iv } = await encryptData(allData, key);
-
-      setSyncStatus('uploading');
-
-      // Upload to API
-      const response = await fetch(`/api/sync?userId=${encodeURIComponent(user?.id || '')}`, {
+      // Upload to API (stored as-is, Upstash is secure)
+      const response = await fetch(`/api/sync?userId=${encodeURIComponent(user.id)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cipherText, iv }),
+        body: JSON.stringify(allData),
       });
 
       if (!response.ok) {
@@ -89,7 +125,7 @@ function App() {
       }
 
       setSyncStatus('done');
-      alert('Data synced to cloud successfully!');
+      alert('Data saved to cloud!');
 
     } catch (e) {
       console.error(e);
@@ -98,53 +134,10 @@ function App() {
     }
   };
 
-  // Download and decrypt data from cloud
-  const handleLoad = async () => {
-    if (!authenticated || wallets.length === 0) {
-      alert('Please login and connect a wallet first.');
-      return;
-    }
-
-    try {
-      setSyncStatus('downloading');
-
-      // Fetch encrypted data from API
-      const response = await fetch(`/api/sync?userId=${encodeURIComponent(user?.id || '')}`);
-
-      if (response.status === 404) {
-        alert('No cloud data found for this account.');
-        setSyncStatus('idle');
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch data');
-      }
-
-      const result = await response.json();
-      const { cipherText, iv } = result.data; // Already parsed by Upstash
-
-      setSyncStatus('encrypting'); // Actually decrypting, but reusing status
-
-      const key = await getEncryptionKey();
-      const decryptedData = await decryptData(cipherText, iv, key);
-
-      // Restore data to localStorage
-      if (decryptedData.todos) localStorage.setItem('todos', decryptedData.todos);
-      if (decryptedData.readings) localStorage.setItem('readings', decryptedData.readings);
-      if (decryptedData.bookmarks) localStorage.setItem('bookmarks', decryptedData.bookmarks);
-      if (decryptedData.calendar) localStorage.setItem('calendar-events', decryptedData.calendar);
-      if (decryptedData.settings?.bgImage) setBgImage(decryptedData.settings.bgImage);
-
-      setSyncStatus('done');
-      alert('Data loaded from cloud! Refreshing...');
-      window.location.reload();
-
-    } catch (e) {
-      console.error(e);
-      setSyncStatus('error');
-      alert('Load Failed: ' + (e as Error).message);
-    }
+  // Manual refresh from cloud
+  const refreshFromCloud = async () => {
+    setHasLoadedFromCloud(false);
+    await loadFromCloud();
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -282,24 +275,30 @@ function App() {
                   <div className="text-xs text-white/50 break-all bg-black/30 p-2 rounded-lg">
                     User: {user?.email?.address || user?.wallet?.address || user?.id}
                   </div>
+                  {syncStatus === 'syncing' && (
+                    <div className="text-xs text-center text-blue-300 animate-pulse">
+                      Syncing...
+                    </div>
+                  )}
                   <div className="flex gap-2">
                     <button
-                      onClick={handleSync}
-                      disabled={syncStatus === 'encrypting' || syncStatus === 'uploading' || syncStatus === 'downloading'}
-                      className="flex-1 py-2 px-4 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/50 text-purple-300 rounded-xl text-sm transition-colors flex items-center justify-center gap-1"
+                      onClick={saveToCloud}
+                      disabled={syncStatus === 'syncing'}
+                      className="flex-1 py-2 px-4 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/50 text-purple-300 rounded-xl text-sm transition-colors flex items-center justify-center gap-1 disabled:opacity-50"
                     >
-                      {syncStatus === 'encrypting' ? '암호화중...' :
-                        syncStatus === 'uploading' ? '업로드중...' :
-                          syncStatus === 'done' ? '완료!' : '↑ Upload'}
+                      {syncStatus === 'syncing' ? '저장중...' : '↑ Save'}
                     </button>
                     <button
-                      onClick={handleLoad}
-                      disabled={syncStatus === 'encrypting' || syncStatus === 'uploading' || syncStatus === 'downloading'}
-                      className="flex-1 py-2 px-4 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/50 text-blue-300 rounded-xl text-sm transition-colors flex items-center justify-center gap-1"
+                      onClick={refreshFromCloud}
+                      disabled={syncStatus === 'syncing'}
+                      className="flex-1 py-2 px-4 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/50 text-blue-300 rounded-xl text-sm transition-colors flex items-center justify-center gap-1 disabled:opacity-50"
                     >
-                      {syncStatus === 'downloading' ? '다운로드중...' : '↓ Download'}
+                      {syncStatus === 'syncing' ? '불러오는중...' : '↓ Load'}
                     </button>
                   </div>
+                  <p className="text-xs text-center text-white/30">
+                    로그인 시 자동으로 클라우드에서 불러옵니다
+                  </p>
                   <button
                     onClick={logout}
                     className="w-full py-2 px-4 bg-white/5 hover:bg-white/10 text-white/70 rounded-xl text-sm transition-colors"
