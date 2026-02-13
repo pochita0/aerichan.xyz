@@ -28,6 +28,21 @@ import { useState, useRef } from 'react';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { usePrivy } from '@privy-io/react-auth';
 
+const isStorageValueEmpty = (value: string | null) => {
+  if (value === null) return true;
+  if (value.trim() === '') return true;
+
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) return parsed.length === 0;
+    if (parsed && typeof parsed === 'object') return Object.keys(parsed).length === 0;
+    return false;
+  } catch {
+    // Non-JSON values are treated as meaningful data
+    return false;
+  }
+};
+
 function App() {
   const [bgImage, setBgImage] = useLocalStorage<string>('dashboard_bg_image', '/macos-wallpaper.jpg');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -50,8 +65,11 @@ function App() {
   }, [authenticated, user?.id, hasLoadedFromCloud]);
 
   // Load data from cloud (no encryption for simplicity)
-  const loadFromCloud = async () => {
+  // Auto-load preserves existing local data to avoid accidental overwrite.
+  // Manual "Load" can force overwrite.
+  const loadFromCloud = async (options?: { force?: boolean }) => {
     if (!user?.id) return;
+    const force = options?.force ?? false;
 
     try {
       setSyncStatus('syncing');
@@ -75,20 +93,36 @@ function App() {
       const cloudData = result.data;
 
       if (cloudData) {
-        // Restore data to localStorage
-        if (cloudData.todos) localStorage.setItem('todos', cloudData.todos);
-        if (cloudData.readings) localStorage.setItem('readings', cloudData.readings);
-        if (cloudData.bookmarks) localStorage.setItem('bookmarks', cloudData.bookmarks);
-        if (cloudData.calendar) localStorage.setItem('calendar-events', cloudData.calendar);
-        if (cloudData.settings?.bgImage) setBgImage(cloudData.settings.bgImage);
+        const restoreIfAllowed = (key: string, cloudValue?: string | null) => {
+          if (!cloudValue) return false;
+          if (!force && !isStorageValueEmpty(localStorage.getItem(key))) return false;
+          localStorage.setItem(key, cloudValue);
+          return true;
+        };
+
+        // Restore data to localStorage (preserve local values during auto-load)
+        const hasRestoredAny =
+          restoreIfAllowed('todos', cloudData.todos) ||
+          restoreIfAllowed('readings', cloudData.readings) ||
+          restoreIfAllowed('bookmarks', cloudData.bookmarks) ||
+          restoreIfAllowed('calendar-events', cloudData.calendar);
+
+        const shouldRestoreBgImage =
+          !!cloudData.settings?.bgImage &&
+          (force || bgImage === '/macos-wallpaper.jpg' || bgImage.trim() === '');
+        if (shouldRestoreBgImage) {
+          setBgImage(cloudData.settings.bgImage);
+        }
 
         console.log('Data loaded from cloud');
         setHasLoadedFromCloud(true);
         sessionStorage.setItem('cloud-loaded', 'true');
         setSyncStatus('done');
 
-        // Reload once to apply changes (sessionStorage prevents loop)
-        window.location.reload();
+        // Reload only when cloud data was actually applied
+        if (hasRestoredAny) {
+          window.location.reload();
+        }
       }
     } catch (e) {
       console.error('Load from cloud failed:', e);
@@ -142,7 +176,7 @@ function App() {
   const refreshFromCloud = async () => {
     sessionStorage.removeItem('cloud-loaded');
     setHasLoadedFromCloud(false);
-    await loadFromCloud();
+    await loadFromCloud({ force: true });
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -302,7 +336,7 @@ function App() {
                     </button>
                   </div>
                   <p className="text-xs text-center text-white/30">
-                    로그인 시 자동으로 클라우드에서 불러옵니다
+                    로그인 시 로컬 데이터가 비어있을 때만 자동 불러오기
                   </p>
                   <button
                     onClick={logout}

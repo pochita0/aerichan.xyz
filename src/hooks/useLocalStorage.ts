@@ -25,9 +25,10 @@ export function useLocalStorage<T>(
   // Wrapper function to match useState API
   const setValue = (value: T | ((val: T) => T)) => {
     try {
-      // Allow value to be a function so we have same API as useState
-      const valueToStore = value instanceof Function ? value(storedValue) : value;
-      setStoredValue(valueToStore);
+      // Match React's functional setState behavior to avoid stale updates.
+      setStoredValue((currentValue) =>
+        value instanceof Function ? value(currentValue) : value
+      );
     } catch (error) {
       console.error(`Error setting localStorage key "${key}":`, error);
     }
