@@ -4,25 +4,102 @@ import { WidgetWrapper } from './WidgetWrapper';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import type { BookmarkItem } from '../../types';
 
-// Favicon URL with fallback
-const getFaviconUrl = (url: string, _size: number = 128) => {
+const getFaviconCandidates = (url: string, size: number) => {
   try {
-    const hostname = new URL(url).hostname;
-    // Use DuckDuckGo's favicon service as primary (better coverage)
-    return `https://icons.duckduckgo.com/ip3/${hostname}.ico`;
+    const parsed = new URL(url);
+    const hostname = parsed.hostname;
+    const origin = `${parsed.protocol}//${hostname}`;
+    const secureOrigin = `https://${hostname}`;
+
+    return [
+      `${origin}/favicon.ico`,
+      `${origin}/apple-touch-icon.png`,
+      `${secureOrigin}/favicon.ico`,
+      `${secureOrigin}/apple-touch-icon.png`,
+      `https://www.google.com/s2/favicons?domain_url=${encodeURIComponent(origin)}&sz=${size}`,
+      `https://www.google.com/s2/favicons?domain=${hostname}&sz=${size}`,
+      `https://icons.duckduckgo.com/ip3/${hostname}.ico`,
+      `https://logo.clearbit.com/${hostname}`,
+    ];
   } catch {
-    return '';
+    return [];
   }
 };
 
-// Fallback to Google's service
-const getFaviconFallback = (url: string, size: number = 128) => {
+const getFaviconInitial = (name: string, url?: string) => {
+  const normalizedName = name.trim();
+  if (normalizedName.length > 0) return normalizedName[0]!.toUpperCase();
+
   try {
-    const hostname = new URL(url).hostname;
-    return `https://www.google.com/s2/favicons?domain=${hostname}&sz=${size}`;
+    if (!url) return '🔗';
+    const hostname = new URL(url).hostname.replace(/^www\./, '');
+    if (hostname.length === 0) return '🔗';
+    return hostname[0]!.toUpperCase();
   } catch {
-    return '';
+    return '🔗';
   }
+};
+
+interface FaviconImageProps {
+  url?: string;
+  name: string;
+  size?: number;
+  className: string;
+  fallbackClassName?: string;
+}
+
+const FaviconImage: React.FC<FaviconImageProps> = ({
+  url,
+  name,
+  size = 128,
+  className,
+  fallbackClassName,
+}) => {
+  const candidates = useMemo(
+    () => (url ? getFaviconCandidates(url, size) : []),
+    [url, size]
+  );
+  const [loadState, setLoadState] = useState<{ url?: string; size: number; index: number }>({
+    url,
+    size,
+    index: 0,
+  });
+
+  const isSameTarget = loadState.url === url && loadState.size === size;
+  const candidateIndex = isSameTarget ? loadState.index : 0;
+  const currentSrc = candidates[candidateIndex];
+
+  if (!currentSrc) {
+    return (
+      <div
+        className={
+          fallbackClassName ||
+          'w-full h-full bg-white/20 text-white/80 flex items-center justify-center font-semibold'
+        }
+        title={name}
+      >
+        {getFaviconInitial(name, url)}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={currentSrc}
+      alt={name}
+      className={className}
+      onError={() => {
+        setLoadState((prev) => {
+          const sameTarget = prev.url === url && prev.size === size;
+          return {
+            url,
+            size,
+            index: sameTarget ? prev.index + 1 : 1,
+          };
+        });
+      }}
+    />
+  );
 };
 
 export const BookmarkWidget: React.FC = () => {
@@ -504,14 +581,13 @@ export const BookmarkWidget: React.FC = () => {
         {child.type === 'folder' ? (
           <div className="w-full h-full bg-gray-400/50 flex items-center justify-center text-sm rounded-xl">📁</div>
         ) : (
-          <img src={getFaviconUrl(child.url || 'http://localhost', 128)}
-            alt="" className="w-full h-full object-cover scale-110 rounded-xl"
-            onError={(e) => {
-              const img = e.target as HTMLImageElement;
-              const fallback = getFaviconFallback(child.url || 'http://localhost', 128);
-              if (!img.src.includes('google.com')) img.src = fallback;
-              else img.style.display = 'none';
-            }} />
+          <FaviconImage
+            url={child.url}
+            name={child.name}
+            size={128}
+            className="w-full h-full object-cover scale-110 rounded-xl"
+            fallbackClassName="w-full h-full rounded-xl bg-white/15 text-white/80 flex items-center justify-center text-[11px] font-semibold"
+          />
         )}
       </div>
     );
@@ -550,14 +626,13 @@ export const BookmarkWidget: React.FC = () => {
               {child.type === 'folder' ? (
                 <div className="w-full h-full bg-white/10 flex items-center justify-center text-[8px]">📁</div>
               ) : (
-                <img src={getFaviconUrl(child.url || 'http://localhost', 32)}
-                  alt="" className="w-full h-full object-cover"
-                  onError={(e) => {
-                    const img = e.target as HTMLImageElement;
-                    const fallback = getFaviconFallback(child.url || 'http://localhost', 32);
-                    if (!img.src.includes('google.com')) img.src = fallback;
-                    else img.style.display = 'none';
-                  }} />
+                <FaviconImage
+                  url={child.url}
+                  name={child.name}
+                  size={32}
+                  className="w-full h-full object-cover"
+                  fallbackClassName="w-full h-full rounded-md bg-white/15 text-white/80 flex items-center justify-center text-[7px] font-semibold"
+                />
               )}
             </div>
           ))}
@@ -618,17 +693,25 @@ export const BookmarkWidget: React.FC = () => {
               <div className="w-full h-full bg-white/10 backdrop-blur-md rounded-2xl p-1 animate-pulse border border-white/20" style={{ animation: 'folderPreviewPop 0.2s ease-out' }}>
                 <div className="grid grid-cols-2 grid-rows-2 gap-1 w-full h-full">
                   <div className="w-full h-full rounded-lg overflow-hidden">
-                    <img src={getFaviconUrl(item.url || 'http://localhost', 64)}
-                      alt="" className="w-full h-full object-cover"
-                      onError={(e) => { (e.target as HTMLImageElement).src = getFaviconFallback(item.url || 'http://localhost', 64); }} />
+                    <FaviconImage
+                      url={item.url}
+                      name={item.name}
+                      size={64}
+                      className="w-full h-full object-cover"
+                      fallbackClassName="w-full h-full rounded-lg bg-white/15 text-white/80 flex items-center justify-center text-[10px] font-semibold"
+                    />
                   </div>
                   <div className="w-full h-full rounded-lg overflow-hidden">
                     {(() => {
                       const draggedItem = bookmarks.find(b => b.id === draggedId);
                       return draggedItem ? (
-                        <img src={getFaviconUrl(draggedItem.url || 'http://localhost', 64)}
-                          alt="" className="w-full h-full object-cover"
-                          onError={(e) => { (e.target as HTMLImageElement).src = getFaviconFallback(draggedItem.url || 'http://localhost', 64); }} />
+                        <FaviconImage
+                          url={draggedItem.url}
+                          name={draggedItem.name}
+                          size={64}
+                          className="w-full h-full object-cover"
+                          fallbackClassName="w-full h-full rounded-lg bg-white/15 text-white/80 flex items-center justify-center text-[10px] font-semibold"
+                        />
                       ) : null;
                     })()}
                   </div>
@@ -637,26 +720,18 @@ export const BookmarkWidget: React.FC = () => {
             ) : isFolder ? renderFolderPreview(item.id) : (
               // App Icon - Minimalist Glass Gradient (No Box)
               <div className="relative w-full h-full rounded-[14px] transition-transform duration-200 group-hover:scale-105 shadow-md">
-                <img src={getFaviconUrl(item.url || 'http://localhost', 128)}
-                  alt={item.name}
+                <FaviconImage
+                  url={item.url}
+                  name={item.name}
+                  size={128}
                   className="w-full h-full object-cover rounded-[14px]"
-                  style={{ objectFit: 'cover' }}
-                  onError={(e) => {
-                    const img = e.target as HTMLImageElement;
-                    const fallback = getFaviconFallback(item.url || 'http://localhost', 128);
-                    if (img.src !== fallback) {
-                      img.src = fallback;
-                    } else {
-                      img.style.display = 'none';
-                      img.closest('.relative')?.nextElementSibling?.classList.remove('hidden');
-                    }
-                  }} />
+                  fallbackClassName="w-full h-full rounded-[14px] bg-white/15 text-white/80 flex items-center justify-center text-lg font-semibold"
+                />
 
                 {/* Subtle Gradient Overlay - No Border */}
                 <div className="absolute inset-0 rounded-[14px] bg-gradient-to-br from-white/40 to-transparent opacity-50 pointer-events-none" style={{ mixBlendMode: 'overlay' }} />
               </div>
             )}
-            {!isFolder && folderPreviewTarget !== item.id && <span className="hidden w-full h-full bg-transparent flex items-center justify-center text-2xl">🔗</span>}
           </div>
 
           {
@@ -781,15 +856,12 @@ export const BookmarkWidget: React.FC = () => {
                       {child.type === 'folder' ? (
                         <div className="w-full h-full bg-gray-500/50 flex items-center justify-center text-lg">📁</div>
                       ) : (
-                        <img
-                          src={getFaviconUrl(child.url || 'http://localhost', 128)}
-                          alt={child.name}
+                        <FaviconImage
+                          url={child.url}
+                          name={child.name}
+                          size={128}
                           className="w-full h-full object-cover scale-110"
-                          onError={(e) => {
-                            const img = e.target as HTMLImageElement;
-                            const fallback = getFaviconFallback(child.url || 'http://localhost', 128);
-                            if (!img.src.includes('google.com')) img.src = fallback;
-                          }}
+                          fallbackClassName="w-full h-full bg-white/15 text-white/80 flex items-center justify-center text-[11px] font-semibold"
                         />
                       )}
                     </div>
