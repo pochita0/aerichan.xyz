@@ -4,7 +4,6 @@ import { CalendarWidget } from './components/widgets/CalendarWidget';
 import { TodoWidget } from './components/widgets/TodoWidget';
 import { BookmarkWidget } from './components/widgets/BookmarkWidget';
 import { ReadingWidget } from './components/widgets/ReadingWidget';
-import { AssetMovePage } from './components/transfer/AssetMovePage';
 
 // Desktop layout - side by side widgets
 const desktopLayout = [
@@ -47,7 +46,6 @@ const isStorageValueEmpty = (value: string | null) => {
 
 function App() {
   const [bgImage, setBgImage] = useLocalStorage<string>('dashboard_bg_image', '/macos-wallpaper.jpg');
-  const [activeTab, setActiveTab] = useLocalStorage<'dashboard' | 'asset-move'>('dashboard-active-tab', 'dashboard');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [dashboardLayoutVersion, setDashboardLayoutVersion] = useState(0);
@@ -405,60 +403,16 @@ function App() {
         </div>
       )}
 
-      <div className="relative z-10 flex min-h-screen">
-        <aside className="w-[78px] sm:w-[220px] border-r border-white/10 bg-black/20 backdrop-blur-md">
-          <div className="sticky top-0 p-3 sm:p-4">
-            <p className="hidden sm:block px-2 pb-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/40">
-              Workspace
-            </p>
-
-            <div className="space-y-2">
-              <button
-                onClick={() => setActiveTab('dashboard')}
-                className={`w-full rounded-xl border px-3 py-2 text-left transition-all ${activeTab === 'dashboard'
-                  ? 'border-white/30 bg-white/15 text-white shadow-lg'
-                  : 'border-white/10 bg-white/5 text-white/70 hover:bg-white/10'
-                  }`}
-              >
-                <span className="flex items-center gap-2">
-                  <span className="text-base">📊</span>
-                  <span className="hidden sm:inline text-sm font-semibold">Dashboard</span>
-                </span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('asset-move')}
-                className={`w-full rounded-xl border px-3 py-2 text-left transition-all ${activeTab === 'asset-move'
-                  ? 'border-emerald-300/40 bg-emerald-500/20 text-emerald-100 shadow-lg shadow-emerald-500/20'
-                  : 'border-white/10 bg-white/5 text-white/70 hover:bg-white/10'
-                  }`}
-              >
-                <span className="flex items-center gap-2">
-                  <span className="text-base">↔</span>
-                  <span className="hidden sm:inline text-sm font-semibold">Asset Move</span>
-                </span>
-              </button>
-            </div>
-          </div>
-        </aside>
-
-        <main className="min-w-0 flex-1">
-          {activeTab === 'dashboard' ? (
-            <DashboardGrid
-              key={dashboardLayoutVersion}
-              defaultLayout={defaultLayout}
-              mobileLayout={mobileLayout}
-            >
-              <CalendarWidget />
-              <TodoWidget />
-              <ReadingWidget />
-              <BookmarkWidget />
-            </DashboardGrid>
-          ) : (
-            <AssetMovePage />
-          )}
-        </main>
-      </div>
+      <DashboardGrid
+        key={dashboardLayoutVersion}
+        defaultLayout={defaultLayout}
+        mobileLayout={mobileLayout}
+      >
+        <CalendarWidget />
+        <TodoWidget />
+        <ReadingWidget />
+        <BookmarkWidget />
+      </DashboardGrid>
     </div>
   );
 }
