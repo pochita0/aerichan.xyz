@@ -20,6 +20,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('X-Dashboard-Sync-Api', '2026-05-12');
 
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
@@ -27,12 +28,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
         const { userId } = req.query;
-        const redis = getRedisClient();
 
         if (!userId || typeof userId !== 'string') {
             return res.status(400).json({ error: 'userId is required' });
         }
 
+        const redis = getRedisClient();
         const key = getUserKey(userId);
 
         // GET: Load encrypted data
@@ -69,6 +70,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             });
         }
 
-        return res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({
+            error: 'Sync storage connection failed. Check Upstash Redis REST env vars in Vercel.',
+        });
     }
 }
