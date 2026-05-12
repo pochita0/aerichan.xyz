@@ -44,6 +44,11 @@ const isStorageValueEmpty = (value: string | null) => {
   }
 };
 
+const getSyncableBackgroundImage = (value: string) => {
+  if (value.startsWith('data:image/')) return undefined;
+  return value;
+};
+
 function App() {
   const [bgImage, setBgImage] = useLocalStorage<string>('dashboard_bg_image', '/macos-wallpaper.jpg');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -150,7 +155,7 @@ function App() {
         readings: localStorage.getItem('readings'),
         bookmarks: localStorage.getItem('bookmarks'),
         calendar: localStorage.getItem('calendar-events'),
-        settings: { bgImage }
+        settings: { bgImage: getSyncableBackgroundImage(bgImage) }
       };
 
       // Upload to API (stored as-is, Upstash is secure)
@@ -161,11 +166,20 @@ function App() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to upload data');
+        let message = `Failed to upload data (${response.status})`;
+        try {
+          const errorPayload = await response.json();
+          if (errorPayload?.error) message = errorPayload.error;
+        } catch {
+          // Keep the status-based message when the response is not JSON.
+        }
+        throw new Error(message);
       }
 
       setSyncStatus('done');
-      alert('Data saved to cloud!');
+      alert(bgImage.startsWith('data:image/')
+        ? 'Data saved to cloud! Uploaded background image stays local.'
+        : 'Data saved to cloud!');
 
     } catch (e) {
       console.error(e);

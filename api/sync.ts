@@ -1,11 +1,16 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Redis } from '@upstash/redis';
 
-// Initialize Redis client
-const redis = new Redis({
-    url: process.env.KV_REST_API_URL!,
-    token: process.env.KV_REST_API_TOKEN!,
-});
+const getRedisClient = () => {
+    const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+    const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+
+    if (!url || !token) {
+        throw new Error('SYNC_STORAGE_NOT_CONFIGURED');
+    }
+
+    return new Redis({ url, token });
+};
 
 // Key format: user:{userId}:data
 const getUserKey = (userId: string) => `user:${userId}:data`;
@@ -22,6 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
         const { userId } = req.query;
+        const redis = getRedisClient();
 
         if (!userId || typeof userId !== 'string') {
             return res.status(400).json({ error: 'userId is required' });
@@ -57,6 +63,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(405).json({ error: 'Method not allowed' });
     } catch (error) {
         console.error('Sync API Error:', error);
+        if (error instanceof Error && error.message === 'SYNC_STORAGE_NOT_CONFIGURED') {
+            return res.status(500).json({
+                error: 'Sync storage is not configured. Add Upstash Redis REST env vars in Vercel.',
+            });
+        }
+
         return res.status(500).json({ error: 'Internal server error' });
     }
 }
