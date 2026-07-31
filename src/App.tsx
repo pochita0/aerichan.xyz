@@ -107,7 +107,7 @@ const SegmentedVideoBackground: React.FC = () => {
       <video
         ref={videoRef}
         src={activeVideo.src}
-        className="h-full w-full object-contain"
+        className="h-full w-full object-cover"
         autoPlay
         muted
         playsInline
