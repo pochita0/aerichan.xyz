@@ -31,6 +31,19 @@ const cols = { lg: 12, md: 12, sm: 12, xs: 12 };
 // Maximum rows to contain the grid
 const MAX_ROWS = 8;
 
+const restoreMissingWidgets = (
+  savedLayout: LayoutDef[] | undefined,
+  fallbackLayout: LayoutDef[]
+): LayoutDef[] => {
+  if (!savedLayout) return fallbackLayout;
+
+  const savedById = new Map(savedLayout.map((item) => [item.i, item]));
+  return fallbackLayout.map((fallbackItem) => ({
+    ...fallbackItem,
+    ...savedById.get(fallbackItem.i),
+  }));
+};
+
 // Custom constraint to keep items within grid bounds
 const gridBoundsConstraint = {
   name: 'gridBounds',
@@ -126,8 +139,8 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
     const initLayouts = (): ResponsiveLayouts => {
       if (savedLayouts && Object.keys(savedLayouts).length > 0) {
         return {
-          lg: addConstraints(savedLayouts.lg || defaultLayout),
-          md: addConstraints(savedLayouts.md || defaultLayout),
+          lg: addConstraints(restoreMissingWidgets(savedLayouts.lg, defaultLayout)),
+          md: addConstraints(restoreMissingWidgets(savedLayouts.md, defaultLayout)),
           sm: mobileL, // Mobile uses different layout without constraints
           xs: mobileL,
         };
