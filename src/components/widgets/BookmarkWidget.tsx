@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useCallback, useLayoutEffect } from '
 import ReactDOM from 'react-dom';
 import { WidgetWrapper } from './WidgetWrapper';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { BOOKMARKS_STORAGE_KEY, getInitialBookmarks } from '../../utils/bookmarkStorage';
 import type { BookmarkItem } from '../../types';
 
 const getFaviconCandidates = (url: string, size: number) => {
@@ -103,7 +104,8 @@ const FaviconImage: React.FC<FaviconImageProps> = ({
 };
 
 export const BookmarkWidget: React.FC = () => {
-  const [bookmarks, setBookmarks] = useLocalStorage<BookmarkItem[]>('bookmarks', []);
+  const [initialBookmarks] = useState<BookmarkItem[]>(() => getInitialBookmarks());
+  const [bookmarks, setBookmarks] = useLocalStorage<BookmarkItem[]>(BOOKMARKS_STORAGE_KEY, initialBookmarks);
   const [isAdding, setIsAdding] = useState(false);
   const [addType, setAddType] = useState<'link' | 'folder'>('link');
   const [editingId, setEditingId] = useState<string | null>(null);

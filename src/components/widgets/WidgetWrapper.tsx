@@ -16,7 +16,7 @@ export const WidgetWrapper: React.FC<WidgetWrapperProps> = ({
 }) => {
   return (
     <div
-      className={`relative flex flex-col h-full overflow-hidden text-white transition-all duration-500 ease-out hover:scale-[1.02] hover:-translate-y-1 ${className}`}
+      className={`glass-widget-shell relative flex flex-col h-full overflow-hidden text-white ${className}`}
       style={{
         // 핵심 1: 배경 블러 처리
         backdropFilter: 'blur(12px)',

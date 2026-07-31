@@ -24,9 +24,18 @@ const mobileLayout = [
 // Combined layouts for ResponsiveGridLayout
 const defaultLayout = desktopLayout;
 const DASHBOARD_LAYOUT_STORAGE_KEY = 'dashboard-layouts-v7';
+const BACKGROUND_VIDEOS = [
+  { src: '/minji-summer-loop-bg.mp4', start: 5, end: 74 },
+  { src: '/falling-behind-cover-loop-bg.mp4', start: 0, end: null },
+];
 
 import { useState, useRef } from 'react';
 import { useLocalStorage } from './hooks/useLocalStorage';
+import {
+  BOOKMARKS_STORAGE_KEY,
+  LEGACY_BOOKMARKS_STORAGE_KEY,
+  normalizeBookmarkStorageValue,
+} from './utils/bookmarkStorage';
 import { usePrivy } from '@privy-io/react-auth';
 
 const isStorageValueEmpty = (value: string | null) => {
@@ -47,6 +56,70 @@ const isStorageValueEmpty = (value: string | null) => {
 const getSyncableBackgroundImage = (value: string) => {
   if (value.startsWith('data:image/')) return undefined;
   return value;
+};
+
+const SegmentedVideoBackground: React.FC = () => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [activeVideoIndex, setActiveVideoIndex] = useState(0);
+  const activeVideo = BACKGROUND_VIDEOS[activeVideoIndex];
+
+  const playFromSegmentStart = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const durationLimit = Number.isFinite(video.duration)
+      ? video.duration - 0.25
+      : activeVideo.start;
+    const safeStart = Math.min(activeVideo.start, Math.max(0, durationLimit));
+    if (
+      video.currentTime < safeStart ||
+      (activeVideo.end !== null && video.currentTime >= activeVideo.end)
+    ) {
+      video.currentTime = safeStart;
+    }
+
+    void video.play().catch(() => {
+      // Muted autoplay can still be delayed by the browser until it is ready.
+    });
+  };
+
+  const playNextVideo = () => {
+    setActiveVideoIndex((currentIndex) =>
+      (currentIndex + 1) % BACKGROUND_VIDEOS.length
+    );
+  };
+
+  const advanceAtSegmentEnd = () => {
+    const video = videoRef.current;
+    if (!video || activeVideo.end === null) return;
+
+    const safeEnd = Number.isFinite(video.duration)
+      ? Math.min(activeVideo.end, Math.max(activeVideo.start + 0.25, video.duration - 0.25))
+      : activeVideo.end;
+
+    if (video.currentTime >= safeEnd) {
+      playNextVideo();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-0 overflow-hidden bg-black" aria-hidden="true">
+      <video
+        ref={videoRef}
+        src={activeVideo.src}
+        className="h-full w-full object-contain"
+        autoPlay
+        muted
+        playsInline
+        preload="auto"
+        onLoadedMetadata={playFromSegmentStart}
+        onCanPlay={playFromSegmentStart}
+        onTimeUpdate={advanceAtSegmentEnd}
+        onEnded={playNextVideo}
+      />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.05)_0%,rgba(0,0,0,0.18)_55%,rgba(0,0,0,0.48)_100%)]" />
+    </div>
+  );
 };
 
 function App() {
@@ -107,11 +180,16 @@ function App() {
           return true;
         };
 
+        const bookmarkValue = normalizeBookmarkStorageValue(cloudData.bookmarks);
+        if (cloudData.bookmarks && !bookmarkValue) {
+          console.warn('Skipped invalid cloud bookmarks payload');
+        }
+
         // Restore data to localStorage (preserve local values during auto-load)
         const hasRestoredAny =
           restoreIfAllowed('todos', cloudData.todos) ||
           restoreIfAllowed('readings', cloudData.readings) ||
-          restoreIfAllowed('bookmarks', cloudData.bookmarks) ||
+          restoreIfAllowed(BOOKMARKS_STORAGE_KEY, bookmarkValue) ||
           restoreIfAllowed('calendar-events', cloudData.calendar);
 
         const shouldRestoreBgImage =
@@ -153,7 +231,7 @@ function App() {
       const allData = {
         todos: localStorage.getItem('todos'),
         readings: localStorage.getItem('readings'),
-        bookmarks: localStorage.getItem('bookmarks'),
+        bookmarks: localStorage.getItem(BOOKMARKS_STORAGE_KEY),
         calendar: localStorage.getItem('calendar-events'),
         settings: { bgImage: getSyncableBackgroundImage(bgImage) }
       };
@@ -220,7 +298,8 @@ function App() {
     // Clear all app data
     localStorage.removeItem('todos');
     localStorage.removeItem('readings');
-    localStorage.removeItem('bookmarks');
+    localStorage.removeItem(BOOKMARKS_STORAGE_KEY);
+    localStorage.removeItem(LEGACY_BOOKMARKS_STORAGE_KEY);
     localStorage.removeItem('calendar-events');
     localStorage.removeItem(DASHBOARD_LAYOUT_STORAGE_KEY);
 
@@ -233,16 +312,18 @@ function App() {
 
   return (
     <div
-      className="min-h-screen bg-center bg-fixed bg-no-repeat text-white overflow-hidden transition-all duration-500"
+      className="relative min-h-screen bg-center bg-fixed bg-no-repeat text-white overflow-hidden transition-all duration-500"
       style={{
         backgroundImage: `url('${bgImage}')`,
         backgroundSize: 'auto 100%'
       }}
     >
+      <SegmentedVideoBackground />
+
       {/* Settings Button (Top Right) */}
       <button
         onClick={() => setIsSettingsOpen(true)}
-        className="fixed top-4 right-4 z-[9999] p-2 bg-black/20 hover:bg-black/40 text-white/50 hover:text-white rounded-full backdrop-blur-sm transition-all shadow-lg"
+        className="fixed top-4 right-4 z-[9999] p-2 bg-black/20 hover:bg-black/40 text-white/40 hover:text-white rounded-full backdrop-blur-sm transition-all shadow-lg"
         title="Settings"
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -294,7 +375,7 @@ function App() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-white/80 mb-2">Background Image</label>
+                <label className="block text-sm font-medium text-white/80 mb-2">Fallback Background Image</label>
                 <div className="flex flex-col gap-2">
                   <input
                     type="file"
@@ -417,16 +498,18 @@ function App() {
         </div>
       )}
 
-      <DashboardGrid
-        key={dashboardLayoutVersion}
-        defaultLayout={defaultLayout}
-        mobileLayout={mobileLayout}
-      >
-        <CalendarWidget />
-        <TodoWidget />
-        <ReadingWidget />
-        <BookmarkWidget />
-      </DashboardGrid>
+      <div className="relative z-10">
+        <DashboardGrid
+          key={dashboardLayoutVersion}
+          defaultLayout={defaultLayout}
+          mobileLayout={mobileLayout}
+        >
+          <CalendarWidget />
+          <TodoWidget />
+          <ReadingWidget />
+          <BookmarkWidget />
+        </DashboardGrid>
+      </div>
     </div>
   );
 }

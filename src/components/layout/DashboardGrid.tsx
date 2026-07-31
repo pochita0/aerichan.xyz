@@ -192,7 +192,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
       if (React.isValidElement(child)) {
         const layoutId = defaultLayout[index]?.i || `widget-${index}`;
         result.push(
-          <div key={layoutId}>
+          <div key={layoutId} className="widget-hover-slot relative h-full">
             {!isMobile && (
               <div className="drag-handle cursor-move absolute top-0 left-0 right-0 h-8 z-10" />
             )}
